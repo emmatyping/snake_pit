@@ -75,7 +75,11 @@ OpenSSL. `test.pythoninfo` records the resulting configuration. Runner labels ar
 explicit, but hosted image patch levels and OS package repositories can change;
 their versions are recorded rather than claimed to be hermetically pinned.
 
-Each platform uploads `cpython-<target>-<mode>` containing a tarred in-tree build,
+POSIX builds run `make install` into `cpython/install` so extension builders such
+as Meson can discover installed headers and sysconfig paths. Windows uses the
+PCbuild development layout.
+
+Each platform uploads `cpython-<target>-<mode>` containing the tarred build tree,
 `build.json`, and `pythoninfo.txt`. The archive preserves executable bits, headers,
 standard library/test helpers, generated configuration, and Windows DLLs. Project
 jobs restore it at the original workspace path so sysconfig's build paths remain
@@ -97,10 +101,13 @@ collection and execution phases, and JUnit output. Empty collection is a failure
 
 The job reads the selected version and sdist digest from [data/recipes.toml](../data/recipes.toml),
 downloads that exact sdist and verifies its digest, creates a
-venv using the restored target interpreter, locks declared build requirements to
+venv using the restored target interpreter, seeds setuptools and wheel from
+`pylock.tools.toml`, locks declared build requirements to
 `pylock.build.toml`, and installs that build environment. It builds the package's
 wheel from source with implicit build isolation disabled. It then locks that exact
-local wheel plus runtime/test dependencies into `pylock.toml` and installs from it.
+local wheel plus runtime/test dependencies and the retained build tools into
+`pylock.toml` and installs from it. Recipes may add `build_dependencies` for native
+transitive dependencies that must build without implicit isolation.
 Runtime and test dependencies are resolved for the target interpreter.
 The build wheel is retained alongside the lock. Rust projects with a root
 `Cargo.lock` have a locked fetch phase followed by offline Cargo builds.
@@ -147,7 +154,6 @@ uv run --locked python -m snake_pit.actions matrix \
   --commit "$CPYTHON_COMMIT" --platform "$TARGET_TRIPLE"
 ```
 
-No hosted Actions runs or native CPython builds were launched during local
-implementation. The workflow syntax, matrix expansion, archive checks and
-failure propagation have local validation; the first real workflow dispatch is
-still needed to qualify the native runner/toolchain and upstream-suite recipes.
+Native build and downstream qualification results depend on the chosen commit,
+platform and recipe versions. Inspect uploaded results for each pair; workflow
+syntax and local harness tests alone do not establish downstream compatibility.
