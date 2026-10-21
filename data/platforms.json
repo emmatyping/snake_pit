@@ -1,0 +1,11 @@
+{
+  "source": "https://peps.python.org/pep-0011/#tier-1",
+  "checked_on": "2026-10-21",
+  "platforms": {
+    "aarch64-apple-darwin": {"os": "macos", "compiler": "clang"},
+    "aarch64-unknown-linux-gnu": {"os": "linux", "compiler": "gcc", "libc": "glibc"},
+    "i686-pc-windows-msvc": {"os": "windows", "compiler": "msvc"},
+    "x86_64-pc-windows-msvc": {"os": "windows", "compiler": "msvc"},
+    "x86_64-unknown-linux-gnu": {"os": "linux", "compiler": "gcc", "libc": "glibc"}
+  }
+}

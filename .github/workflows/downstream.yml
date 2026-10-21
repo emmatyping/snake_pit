@@ -1,0 +1,76 @@
+name: CPython downstream tests
+run-name: CPython ${{ inputs.commit }} / ${{ inputs.mode }} downstream tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full CPython commit SHA
+        type: string
+        required: true
+      platforms:
+        description: Space-separated PEP 11 Tier 1 target triples
+        type: string
+        required: true
+      mode:
+        description: CPython build configuration
+        type: choice
+        options: [debug, release_assertions, release, debug-freethreading, release_assertions-freethreading, release-freethreading]
+        default: debug
+      max_parallel:
+        description: Maximum concurrent project tests per platform
+        type: number
+        default: 8
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      builds: ${{ steps.matrix.outputs.builds }}
+      projects: ${{ steps.matrix.outputs.projects }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.4'
+          python-version: '3.14'
+          enable-cache: false
+      - id: matrix
+        env:
+          CPYTHON_COMMIT: ${{ inputs.commit }}
+          PLATFORMS: ${{ inputs.platforms }}
+          MODE: ${{ inputs.mode }}
+          MAX_PARALLEL: ${{ inputs.max_parallel }}
+        shell: bash
+        run: |
+          uv run --locked --no-dev python - <<'PY'
+          import os
+          from pathlib import Path
+          from snake_pit.actions import matrices, write_outputs
+          maximum = float(os.environ['MAX_PARALLEL'])
+          if not maximum.is_integer() or not 1 <= maximum <= 256:
+              raise SystemExit('max_parallel must be an integer from 1 through 256')
+          value = matrices(os.environ['CPYTHON_COMMIT'], os.environ['PLATFORMS'].split(), os.environ['MODE'])
+          write_outputs(value, Path(os.environ['GITHUB_OUTPUT']))
+          PY
+
+  platform:
+    name: ${{ matrix.platform }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.builds) }}
+    uses: ./.github/workflows/platform.yml
+    with:
+      commit: ${{ inputs.commit }}
+      platform: ${{ matrix.platform }}
+      runner: ${{ matrix.runner }}
+      mode: ${{ inputs.mode }}
+      projects: ${{ needs.plan.outputs.projects }}
+      max_parallel: ${{ inputs.max_parallel }}

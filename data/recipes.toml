@@ -1,0 +1,330 @@
+# Initial upstream-suite recipes. These are attempted independently on each target;
+# they remain unqualified until their recorded build and test runs pass.
+# {version} comes from each recipe version below. Release tags were verified
+# against the commit pins below; runs verify their identity again before tests.
+
+[urllib3]
+version = "2.8.0"
+sdist_url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz"
+sdist_sha256 = "63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63"
+repository = "https://github.com/urllib3/urllib3"
+commit = "b1d30ab61fe0db8f11092805e8c5ac43e091064a"
+tag = "{version}"
+module = "urllib3"
+tests = "test"
+dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "trustme", "PySocks", "python-dateutil"]
+
+[httpx]
+version = "0.28.1"
+sdist_url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz"
+sdist_sha256 = "75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"
+repository = "https://github.com/encode/httpx"
+commit = "26d48e0634e6ee9cdc0533996db289ce4b430177"
+tag = "{version}"
+module = "httpx"
+tests = "tests"
+dependencies = ["pytest", "pytest-asyncio", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard"]
+
+[anyio]
+version = "4.15.1"
+sdist_url = "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc37b1db102b386ba719b66e95b0f0d751f556b387e6d2/anyio-4.15.1.tar.gz"
+sdist_sha256 = "9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94"
+repository = "https://github.com/agronholm/anyio"
+commit = "ffcd1542cd6d127980205f90a0100078849dd703"
+tag = "{version}"
+module = "anyio"
+tests = "tests"
+dependencies = ["pytest", "pytest-mock", "pytest-timeout", "trustme", "trio", "psutil"]
+
+[jinja2]
+version = "3.1.6"
+sdist_url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz"
+sdist_sha256 = "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"
+repository = "https://github.com/pallets/jinja"
+commit = "15206881c006c79667fe5154fe80c01c65410679"
+tag = "{version}"
+module = "jinja2"
+tests = "tests"
+dependencies = ["pytest", "pytest-asyncio", "Babel"]
+
+[pytest]
+version = "9.1.1"
+sdist_url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz"
+sdist_sha256 = "1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313"
+repository = "https://github.com/pytest-dev/pytest"
+commit = "cf470ec0bf7eb89cd97dd56df4859eae5db46447"
+tag = "{version}"
+module = "pytest"
+tests = "testing"
+dependencies = ["attrs", "hypothesis", "pygments", "requests", "xmlschema", "pexpect; sys_platform != 'win32'", "argcomplete"]
+
+[packaging]
+version = "26.3"
+sdist_url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz"
+sdist_sha256 = "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"
+repository = "https://github.com/pypa/packaging"
+commit = "929fd4b1410ac7ef61ef3f45b2f5d7e87711a9b5"
+tag = "{version}"
+module = "packaging"
+tests = "tests"
+dependencies = ["pytest", "pretend"]
+
+[numpy]
+version = "2.5.4"
+sdist_url = "https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz"
+sdist_sha256 = "9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a"
+repository = "https://github.com/numpy/numpy"
+commit = "a3d0ef1df045b858e68115001fdabc930bb3b68c"
+tag = "v{version}"
+module = "numpy"
+tests = "_core/tests"
+installed = true
+dependencies = ["pytest", "hypothesis", "pytest-timeout"]
+linux = ["gfortran", "libopenblas-dev"]
+macos = ["openblas"]
+
+[cffi]
+version = "2.1.1"
+sdist_url = "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz"
+sdist_sha256 = "dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be"
+repository = "https://github.com/python-cffi/cffi"
+commit = "fd33e7700f0ebafe6f30bd5053f13327221b77a2"
+tag = "v{version}"
+module = "cffi"
+tests = "testing"
+dependencies = ["pytest", "setuptools", "pygments"]
+linux = ["libffi-dev"]
+macos = ["libffi"]
+
+[cryptography]
+version = "50.0.2"
+sdist_url = "https://files.pythonhosted.org/packages/9d/af/182eb91b0df3fe75c4d9f26fe70684569566745f6ba7e5c9c73a862c5252/cryptography-50.0.2.tar.gz"
+sdist_sha256 = "7b46165bb56eb4704e2eaaf86f3c940d19154535d9b0ca7d6d590b04060e00d5"
+repository = "https://github.com/pyca/cryptography"
+commit = "4dda5c7fe4ae71b8925f2551910a0ef959df9c7a"
+tag = "{version}"
+module = "cryptography"
+tests = "tests"
+dependencies = ["pytest", "pytest-benchmark", "pytest-subtests", "pretend", "hypothesis", "cryptography-vectors=={version}"]
+linux = ["libssl-dev", "pkg-config"]
+
+[pydantic-core]
+version = "2.50.1"
+sdist_url = "https://files.pythonhosted.org/packages/a6/24/af4ec4be49fbc810f35b0bdcacc3d433b56bbfa469fd3bfd4ae116cd9bf1/pydantic_core-2.50.1.tar.gz"
+sdist_sha256 = "e50d7b94baac6c7d09927fa5ca5800a0c7ee5015c7fcff65beb3a1931b5a6e09"
+repository = "https://github.com/pydantic/pydantic"
+# This release includes its tests in the hashed sdist (the project moved into
+# the pydantic monorepo and has no corresponding tag in the old repository).
+tag = ""
+source = "sdist"
+module = "pydantic_core"
+tests = "tests"
+dependencies = ["pytest", "pytest-mock", "hypothesis", "dirty-equals", "inline-snapshot", "pytest-timeout", "pytest-benchmark"]
+
+[requests]
+version = "2.34.2"
+sdist_url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz"
+sdist_sha256 = "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
+repository = "https://github.com/psf/requests"
+commit = "6e83187b8feb273ed4c6cdab5efd8d54901dfab3"
+tag = "v{version}"
+module = "requests"
+tests = "tests"
+dependencies = ["pytest", "pytest-httpbin", "trustme", "PySocks", "pytest-mock"]
+
+[trio]
+version = "0.34.0"
+sdist_url = "https://files.pythonhosted.org/packages/92/dc/a2d25ed73ad49cfd79bf18d262577c3731c98e382284e28d522f49a0df35/trio-0.34.0.tar.gz"
+sdist_sha256 = "63b9485408bdfdde544fced107045a8c0086cdc4bd0ef2f797b9e0dd111b964b"
+repository = "https://github.com/python-trio/trio"
+commit = "b3fd421ab1ac7830ed7440b85331e4ae2ccaaba9"
+tag = "v{version}"
+module = "trio"
+tests = "src/trio/_tests"
+dependencies = ["pytest", "pytest-trio", "hypothesis", "trustme"]
+
+[websockets]
+version = "17.3"
+sdist_url = "https://files.pythonhosted.org/packages/30/4b/4692be6d5bf739ed049b3813901c42091f8c054df89d5c089343823dea0d/websockets-17.3.tar.gz"
+sdist_sha256 = "1c7dd93a1c9f89297471493674b1fc1d9467cafd45374f2172213046bdb3a329"
+repository = "https://github.com/python-websockets/websockets"
+commit = "86a1ad5b0009e801e451f1be1da2a077e2dd2471"
+tag = "{version}"
+module = "websockets"
+tests = "tests"
+dependencies = ["pytest", "pytest-asyncio"]
+
+[django]
+version = "6.1.2"
+sdist_url = "https://files.pythonhosted.org/packages/89/24/20d187a22ac821288b53c53b8f696019dcb0c7b4f973f052ade19392c74d/django-6.1.2.tar.gz"
+sdist_sha256 = "a1e92451ccb8b514e91bbb3b6d186d20b4030558f116b5d9de6535455ff210b7"
+repository = "https://github.com/django/django"
+commit = "2212534bae393714e1e51db2341d4fd5545e19f6"
+tag = "{version}"
+module = "django"
+tests = "tests"
+adapter = "django"
+selection = ["basic", "dates", "datetimes", "cache", "admin_checks"]
+dependencies = ["pytest", "jinja2", "PyYAML", "pillow"]
+
+[sqlalchemy]
+version = "2.1.6"
+sdist_url = "https://files.pythonhosted.org/packages/36/dc/9addbf490110b5727380059ee542ad8353bdcee45a37ba6a5e0976966ae0/sqlalchemy-2.1.6.tar.gz"
+sdist_sha256 = "499eae5c9051efe96cb9a73ec2fbde8ffa4186f102b9094ebab8fcc9d3b99f52"
+repository = "https://github.com/sqlalchemy/sqlalchemy"
+commit = "2f6968cc126d4da2d2eabc5a51285472bb9bfc9e"
+tag = "rel_{version_underscores}"
+module = "sqlalchemy"
+tests = "test"
+dependencies = ["pytest", "pytest-xdist", "greenlet", "aiosqlite"]
+
+[hypothesis]
+version = "6.170.5"
+sdist_url = "https://files.pythonhosted.org/packages/90/a4/49ae9a9a23523490b1bbd39114dcb900ac24cc5a4197b47787a4cccf7708/hypothesis-6.170.5.tar.gz"
+sdist_sha256 = "b147f57c7903bda934d9f6ee6df462006e0c70a69b25a55e99663671666b249d"
+repository = "https://github.com/HypothesisWorks/hypothesis"
+commit = "6dda9ecc8a2b6e3eab192c85bf9082b4eccdb068"
+tag = "v{version}"
+module = "hypothesis"
+tests = "hypothesis-python/tests/cover"
+dependencies = ["pytest", "attrs", "pexpect; sys_platform != 'win32'", "python-dateutil", "pytz"]
+
+[click]
+version = "8.5.0"
+sdist_url = "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz"
+sdist_sha256 = "ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34"
+repository = "https://github.com/pallets/click"
+commit = "8b19813f2bfca99f1018a587a8cf54fc959f2e5d"
+tag = "{version}"
+module = "click"
+tests = "tests"
+dependencies = ["pytest", "pytest-mock"]
+
+[pyyaml]
+version = "6.0.3"
+sdist_url = "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz"
+sdist_sha256 = "d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f"
+repository = "https://github.com/yaml/pyyaml"
+commit = "49790e73684bebad1df05ef8d828fa12f685bffb"
+tag = "{version}"
+module = "yaml"
+tests = "tests/lib3"
+dependencies = ["pytest"]
+linux = ["libyaml-dev"]
+macos = ["libyaml"]
+
+[pandas]
+version = "3.0.6"
+sdist_url = "https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz"
+sdist_sha256 = "66b07ef7315a31bfe1089cd3d71a7de781c9dca986762d0b4fe7c0ef17465d10"
+repository = "https://github.com/pandas-dev/pandas"
+commit = "2905718b126579d2cf0fe5bae05bd75facb67d77"
+tag = "v{version}"
+module = "pandas"
+tests = "tests/arrays"
+installed = true
+dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil", "pytz", "tzdata"]
+
+[pillow]
+version = "13.0.0"
+sdist_url = "https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz"
+sdist_sha256 = "cdcd1ba258178f7356d74170c9a81ba4eab6a5d55748bc402a5a2a6fe6be3510"
+repository = "https://github.com/python-pillow/Pillow"
+commit = "293218ad059d994baf1777d882911bed6a49704a"
+tag = "{version}"
+module = "PIL"
+tests = "Tests"
+dependencies = ["pytest", "pytest-timeout"]
+linux = ["libjpeg-dev", "zlib1g-dev", "libtiff-dev", "libwebp-dev", "liblcms2-dev", "libfreetype-dev"]
+macos = ["jpeg-turbo", "libtiff", "webp", "little-cms2", "freetype"]
+
+[lxml]
+version = "6.1.3"
+sdist_url = "https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz"
+sdist_sha256 = "45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21"
+repository = "https://github.com/lxml/lxml"
+commit = "3c1a4c7f2d5a3c19efe01adfd3c33ac3c8fe52c1"
+tag = "lxml-{version}"
+module = "lxml"
+tests = "src/lxml/tests"
+dependencies = ["pytest", "cssselect", "beautifulsoup4", "html5lib", "lxml_html_clean"]
+linux = ["libxml2-dev", "libxslt1-dev"]
+macos = ["libxml2", "libxslt"]
+
+[msgpack]
+version = "1.2.3"
+sdist_url = "https://files.pythonhosted.org/packages/0a/e7/bb605a7bab2d8425a64b3fa762b39dc1bf1c7e3f11ba6fb5413d6db0ff8c/msgpack-1.2.3.tar.gz"
+sdist_sha256 = "32edb81a2b5eb7cd7c9d941b2bfbbb082fd2cd09e0e725930316af6b708db186"
+repository = "https://github.com/msgpack/msgpack-python"
+commit = "742cb6d7ad141343edcccc829b5b06d0c6f8fcb5"
+tag = "v{version}"
+module = "msgpack"
+tests = "test"
+dependencies = ["pytest"]
+
+[psutil]
+version = "7.2.2"
+sdist_url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz"
+sdist_sha256 = "0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"
+repository = "https://github.com/giampaolo/psutil"
+commit = "9eea97dd6f1d16ea33f5144c8925f1ce7a0688e1"
+tag = "release-{version}"
+module = "psutil"
+tests = "psutil/tests"
+dependencies = ["pytest", "pytest-xdist"]
+
+[orjson]
+version = "3.13.0"
+sdist_url = "https://files.pythonhosted.org/packages/f2/72/380b97dc45bd162d23afe5194721ef678d9eac7cfaa549fe2873f7f0a518/orjson-3.13.0.tar.gz"
+sdist_sha256 = "d1de5eb04485110c5da4c657e49168995d55e076b1ce60f1a042e254f4186c4f"
+repository = "https://github.com/ijl/orjson"
+commit = "bd00937c5c46ab20eb5d7fe1cfc034b906c4578f"
+tag = "{version}"
+module = "orjson"
+tests = "test"
+dependencies = ["pytest", "numpy", "pytz"]
+
+[greenlet]
+version = "3.5.6"
+sdist_url = "https://files.pythonhosted.org/packages/3e/6e/0091f175ccd02b02bc8811bbcbcc6ac2e980be116e3b2f7a736ca322bf84/greenlet-3.5.6.tar.gz"
+sdist_sha256 = "8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575"
+repository = "https://github.com/python-greenlet/greenlet"
+commit = "abfe740315a9926ff180c622cf02f122c07f9126"
+tag = "{version}"
+module = "greenlet"
+tests = "tests"
+installed = true
+dependencies = ["pytest"]
+
+[uvloop]
+version = "0.23.0"
+sdist_url = "https://files.pythonhosted.org/packages/fa/42/02c739ce85fb2ee8d99212c61417da8140c6b87e9d97c430bea520d76044/uvloop-0.23.0.tar.gz"
+sdist_sha256 = "28d160f51ab4da3b187063652e643dea6831072add4adc1e6d62afbe73b6be27"
+repository = "https://github.com/MagicStack/uvloop"
+commit = "c5f7debaabe98bba70859aa0120db243775c255c"
+tag = "v{version}"
+module = "uvloop"
+tests = "tests"
+dependencies = ["pytest", "psutil", "aiohttp", "six"]
+
+[coverage]
+version = "7.16.2"
+sdist_url = "https://files.pythonhosted.org/packages/2f/55/d1eaf3e73781174340a00dc1ba2aee8a65f82fadb18e2797b192b6b3925b/coverage-7.16.2.tar.gz"
+sdist_sha256 = "ca64d9f1f384f151b9511bec01126072acd2f313439f8ed015a22d8790aab6fa"
+repository = "https://github.com/nedbat/coveragepy"
+commit = "5643ae7c682bbd56ee1ac2b11556145ab8c2cab0"
+tag = "{version}"
+module = "coverage"
+tests = "tests/test_api.py"
+dependencies = ["pytest", "pytest-xdist", "hypothesis", "flaky", "unittest-mixins"]
+
+[pip]
+version = "26.2.2"
+sdist_url = "https://files.pythonhosted.org/packages/fa/e8/0842d757e483e895e670f655084cfe8b8c72580c6769a76b30b2789a0608/pip-26.2.2.tar.gz"
+sdist_sha256 = "3a8e5c800492787f33a4114ef54444546c340df428974ebba17e0fd47e11af2f"
+repository = "https://github.com/pypa/pip"
+commit = "b3b696fe2122f2339d782517559bfade2cb6b879"
+tag = "{version}"
+module = "pip"
+tests = "tests/unit"
+dependencies = ["pytest", "pytest-xdist", "pytest-rerunfailures", "pretend", "freezegun", "scripttest", "virtualenv", "installer", "build", "wheel", "setuptools", "werkzeug", "requests", "trustme"]

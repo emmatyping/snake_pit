@@ -1,0 +1,100 @@
+name: Build CPython and test one platform
+
+on:
+  workflow_call:
+    inputs:
+      commit:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      mode:
+        type: string
+        default: debug
+      projects:
+        type: string
+        required: true
+      max_parallel:
+        type: number
+        default: 8
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build CPython / ${{ inputs.platform }} / ${{ inputs.mode }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: python/cpython
+          ref: ${{ inputs.commit }}
+          path: cpython
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.4'
+          python-version: '3.14'
+          enable-cache: false
+      - name: Build requested CPython commit
+        env:
+          CPYTHON_COMMIT: ${{ inputs.commit }}
+          PLATFORM: ${{ inputs.platform }}
+          MODE: ${{ inputs.mode }}
+        shell: bash
+        run: uv run --locked --no-dev python -m snake_pit.actions build --commit "$CPYTHON_COMMIT" --platform "$PLATFORM" --mode "$MODE"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cpython-${{ inputs.platform }}-${{ inputs.mode }}
+          path: cpython-artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  test:
+    name: ${{ inputs.platform }} / ${{ inputs.mode }} / ${{ matrix.project }}
+    needs: build
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ inputs.max_parallel }}
+      matrix:
+        project: ${{ fromJSON(inputs.projects) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.4'
+          python-version: '3.14'
+          enable-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: cpython-${{ inputs.platform }}-${{ inputs.mode }}
+          path: cpython-artifact
+      - name: Build and test project with restored CPython
+        env:
+          CPYTHON_COMMIT: ${{ inputs.commit }}
+          PLATFORM: ${{ inputs.platform }}
+          MODE: ${{ inputs.mode }}
+          PROJECT: ${{ matrix.project }}
+        shell: bash
+        run: uv run --locked --no-dev python -m snake_pit.project --commit "$CPYTHON_COMMIT" --platform "$PLATFORM" --mode "$MODE" --project "$PROJECT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: results-${{ inputs.platform }}-${{ inputs.mode }}-${{ matrix.project }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 14
