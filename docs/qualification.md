@@ -17,6 +17,11 @@ have failed or your spending limit needs to be increased.” See the
 Jobs with no steps or logs under this restriction are infrastructure failures;
 they do not establish package incompatibility. Further complete qualification
 requires restoring Actions billing availability and dispatching the latest main.
+At the last check, the third iteration still had SQLAlchemy and pandas running
+on Linux x86-64; other platform jobs had been rejected before starting. The
+latest NumPy executable-path, native lxml, psutil and Windows Pillow corrections
+are pushed but need another hosted run. Existing runs use their original
+workflow commit, so rerunning an older attempt does not test these changes.
 
 ## Verified suites
 
@@ -28,7 +33,7 @@ phase logs and JUnit reports where supported.
 | --- | --- |
 | packaging | All five platforms |
 | Click, coverage, Django's selected suites, greenlet, MessagePack, orjson, pandas' selected array tests, Pillow | All three POSIX platforms |
-| PyYAML | Linux x86-64, verified in the third iteration |
+| PyYAML, Hypothesis | Linux x86-64, verified in the third iteration |
 
 ## Confirmed compatibility findings
 
@@ -56,7 +61,7 @@ missing test dependencies. SQLAlchemy's first macOS report had 27,228 passing
 tests, 1,027 skips and 70 setup errors caused solely by missing mypy; mypy has
 been added. The Windows x86 SQLAlchemy report similarly had 26,970 passing
 tests and the same 70 missing-mypy setup errors. Hypothesis's missing snapshot
-fixture is supplied by syrupy. NumPy's namespace test directories now collect
+fixture is supplied by syrupy, verified by a passing Linux x86-64 run. NumPy's namespace test directories now collect
 successfully using installed filesystem paths rather than `--pyargs`. Its next
 run reached tests but could not launch the installed `meson` executable; the
 harness now activates the venv's executable directory in `PATH` and records
