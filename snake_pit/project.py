@@ -87,7 +87,9 @@ def windows_compiler_environment(platform: str, work: Path, env: dict[str, str])
         name, separator, value = line.partition('=')
         if separator and name.upper() in allowed:
             env[name.upper()] = value
-    env.update(DISTUTILS_USE_SDK='1', MSSdk='1')
+    # Explicit compilers also bypass Meson's auto-detected Strawberry Perl ccache,
+    # which is broken on the current hosted Windows image.
+    env.update(DISTUTILS_USE_SDK='1', MSSdk='1', CC='cl', CXX='cl')
 
 
 def run_project(project_name: str, commit: str, platform: str, mode: str,
@@ -208,11 +210,17 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             if name and name[0].lower().replace('_', '-') in backend_names:
                 tools.append(requirement)
         tools_input = output / 'tools.in'
-        tools_input.write_text('\n'.join(tools) + '\n')
+        tools_input.write_text('setuptools\nwheel\n')
         tools_lock = output / 'pylock.tools.toml'
         stage('resolve-tools', [uv, 'pip', 'compile', '--python', str(target),
                                 str(tools_input), '-o', str(tools_lock)])
-        stage('bootstrap-tools', [uv, 'pip', 'sync', '--python', str(target), str(tools_lock)])
+        stage('bootstrap-tools', [uv, 'pip', 'sync', '--python', str(target), '--only-binary=:all:', str(tools_lock)])
+        backends_input = output / 'backends.in'
+        backends_input.write_text('\n'.join(tools) + '\n')
+        backends_lock = output / 'pylock.backends.toml'
+        stage('resolve-backends', [uv, 'pip', 'compile', '--python', str(target), '--no-build-isolation',
+                                   str(backends_input), '-o', str(backends_lock)])
+        stage('bootstrap-backends', [uv, 'pip', 'sync', '--python', str(target), '--no-build-isolation', str(backends_lock)])
         build_requires = [*build_requires, 'setuptools', 'wheel', *recipe.get('build_dependencies', [])]
         build_input = output / 'build.in'
         build_input.write_text('\n'.join(build_requires) + '\n')
@@ -259,16 +267,14 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
                 tests = checkout / recipe['tests']
             result['test_selection'] = [str(tests)]
             # Load upstream configuration/plugins but don't add source packages to sys.path.
-            if recipe.get('installed'):
-                # Import installed tests under their canonical package names. Using
-                # importlib mode on site-packages paths can import NumPy twice.
-                package = module + '.' + recipe['tests'].replace('/', '.')
-                command = [str(target), '-m', 'pytest', '-o', 'pythonpath=', '--pyargs', package]
-            else:
-                import_mode = recipe.get('import_mode', 'importlib')
-                command = [str(target), '-P', '-m', 'pytest', f'--import-mode={import_mode}', '-o', 'pythonpath=', str(tests)]
+            # NumPy's test directories may be namespace packages without __init__.py,
+            # so --pyargs cannot locate them. Prepend mode on the installed path also
+            # avoids re-importing native modules under a second name.
+            import_mode = 'prepend' if recipe.get('installed') else recipe.get('import_mode', 'importlib')
+            command = [str(target), '-P', '-m', 'pytest', f'--import-mode={import_mode}', '-o', 'pythonpath=', str(tests)]
             stage('collect', [*command, '--collect-only', '-qq'], test_cwd, framework='pytest')
-            stage('test', [*command, f'--junitxml={output / "tests.xml"}'], test_cwd, framework='pytest', timeout=1800)
+            stage('test', [*command, '--maxfail=10', f'--junitxml={output / "tests.xml"}'],
+                  test_cwd, framework='pytest', timeout=1800)
         result['status'] = 'passed'
     except PhaseFailed:
         pass

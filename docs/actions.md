@@ -98,15 +98,23 @@ Recipes are initial qualification attempts, not certified compatibility claims.
 Most use release-tagged upstream tests; the resolved commit is checked against the
 recipe pin. A recipe can instead use tests included in the hash-verified sdist.
 NumPy, pandas and greenlet use tests from the installed package, collected with
-`--pyargs` under their canonical names. lxml overlays its pinned upstream test
+pytest's default import mode on their installed paths. This also supports test
+directories without `__init__.py`. lxml overlays its pinned upstream test
 sources into the installed package without replacing its built extensions. Django runs a
 named SQLite subset through its own runner. Other recipes use pytest with separate
 collection and execution phases, and JUnit output. Empty collection is a failure.
+Test execution stops after ten failures so incompatible suites produce useful
+diagnostics without running thousands of already-blocked cases. Upstream suites
+run from their checkout with the current directory excluded from Python's default
+import path; recipes can select `import_mode = "prepend"` when their test helpers
+require it. `test_source` specifies upstream tests to overlay into an installed
+package before collection.
 
 The job reads the selected version and sdist digest from [data/recipes.toml](../data/recipes.toml),
 downloads that exact sdist and verifies its digest, creates a
 venv using the restored target interpreter, seeds setuptools and wheel from
-`pylock.tools.toml`, locks declared build requirements to
+`pylock.tools.toml`, installs build backends from `pylock.backends.toml`, then
+locks declared build requirements to
 `pylock.build.toml`, and installs that build environment. It builds the package's
 wheel from source with implicit build isolation disabled. It then locks that exact
 local wheel plus runtime/test dependencies and the retained build tools into

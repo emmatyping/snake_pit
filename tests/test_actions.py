@@ -30,6 +30,8 @@ class ActionsTests(unittest.TestCase):
                 self.assertEqual(env['PATH'], 'compiler')
                 self.assertEqual(env['INCLUDE'], 'headers')
                 self.assertEqual(env['DISTUTILS_USE_SDK'], '1')
+                self.assertEqual(env['CC'], 'cl')
+                self.assertEqual(env['CXX'], 'cl')
                 self.assertNotIn('GITHUB_TOKEN', env)
 
     def test_matrix_has_one_build_per_platform_and_all_test_pairs(self) -> None:
@@ -186,7 +188,7 @@ class ActionsTests(unittest.TestCase):
                     wheels = Path(argv[argv.index('--out-dir') + 1])
                     wheels.mkdir()
                     (wheels / 'fixture.whl').write_text('trusted fixture')
-                elif phase['name'] in ('resolve-tools', 'resolve-build', 'resolve-tests'):
+                elif phase['name'] in ('resolve-tools', 'resolve-backends', 'resolve-build', 'resolve-tests'):
                     Path(argv[-1]).write_text('lock-version="1.0"\npackages=[]\n')
                 return {'name': phase['name'], 'argv': argv,
                         'status': 'failed' if phase['name'] == 'collect' else 'passed', 'returncode': 5}
@@ -206,9 +208,10 @@ class ActionsTests(unittest.TestCase):
             self.assertTrue((output / 'wheels/fixture.whl').exists())
             self.assertIn('setuptools', (output / 'runtime-test.in').read_text().splitlines())
             self.assertIn('wheel', (output / 'runtime-test.in').read_text().splitlines())
-            tools = (output / 'tools.in').read_text().splitlines()
-            self.assertIn('meson-python>=0.15', tools)
-            self.assertNotIn('numpy', tools)
+            self.assertEqual((output / 'tools.in').read_text().splitlines(), ['setuptools', 'wheel'])
+            backends = (output / 'backends.in').read_text().splitlines()
+            self.assertIn('meson-python>=0.15', backends)
+            self.assertNotIn('numpy', backends)
 
     def test_unsupported_project_platform_pair_needs_no_build_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
