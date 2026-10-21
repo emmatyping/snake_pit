@@ -77,7 +77,9 @@ their versions are recorded rather than claimed to be hermetically pinned.
 
 POSIX builds run `make install` into `cpython/install` so extension builders such
 as Meson can discover installed headers and sysconfig paths. Windows uses the
-PCbuild development layout.
+`PC/layout/main.py` with development headers, import libraries, and test helpers.
+Windows project jobs initialize Visual Studio for the target architecture before
+building extensions.
 
 Each platform uploads `cpython-<target>-<mode>` containing the tarred build tree,
 `build.json`, and `pythoninfo.txt`. The archive preserves executable bits, headers,
@@ -95,7 +97,9 @@ dependencies for every selected project.
 Recipes are initial qualification attempts, not certified compatibility claims.
 Most use release-tagged upstream tests; the resolved commit is checked against the
 recipe pin. A recipe can instead use tests included in the hash-verified sdist.
-NumPy, pandas and greenlet use tests from the installed package. Django runs a
+NumPy, pandas and greenlet use tests from the installed package, collected with
+`--pyargs` under their canonical names. lxml overlays its pinned upstream test
+sources into the installed package without replacing its built extensions. Django runs a
 named SQLite subset through its own runner. Other recipes use pytest with separate
 collection and execution phases, and JUnit output. Empty collection is a failure.
 
@@ -114,7 +118,8 @@ The build wheel is retained alongside the lock. Rust projects with a root
 
 Build and test dependency declarations, dynamic PEP 517 requirements, nested Cargo
 workspaces, native transitive dependencies, optional test fixtures, and upstream
-test layouts may need recipe changes. Missing build requirements produce a failed
+test layouts may need recipe changes. Common build backends are installed from a seed lock before source-only build
+dependencies are compiled. Missing build requirements produce a failed
 stage rather than an implicit unpinned build environment. No automatic ABI3
 workaround or pure Python fallback replaces a failed native build. The root
 project is always built from source; compatible wheels are permitted for dependencies.

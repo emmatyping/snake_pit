@@ -9,14 +9,29 @@ import unittest
 from unittest.mock import patch
 
 from snake_pit.__main__ import load_platforms, main
-from snake_pit.actions import build, interpreter, matrices, restore
+from snake_pit.actions import build, build_interpreter, interpreter, matrices, restore
 from snake_pit.dependencies import load_projects, load_recipes
 from snake_pit.models import Phase, PhaseResult
 from snake_pit.modes import MODES, parse_mode
-from snake_pit.project import run_project
+from snake_pit.project import run_project, windows_compiler_environment
 
 
 class ActionsTests(unittest.TestCase):
+    def test_windows_compiler_environment_uses_target_and_filters_credentials(self) -> None:
+        for platform, arch in [('i686-pc-windows-msvc', 'x86'), ('x86_64-pc-windows-msvc', 'amd64')]:
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as directory:
+                work = Path(directory)
+                env = {'PATH': 'original', 'UV_NO_CONFIG': '1'}
+                with patch('snake_pit.project.subprocess.check_output', side_effect=[
+                    str(work / 'Visual Studio'), 'Path=compiler\nINCLUDE=headers\nLIB=libraries\nGITHUB_TOKEN=secret\n'
+                ]):
+                    windows_compiler_environment(platform, work, env)
+                self.assertIn(f'-arch={arch}', (work / 'compiler-environment.cmd').read_text())
+                self.assertEqual(env['PATH'], 'compiler')
+                self.assertEqual(env['INCLUDE'], 'headers')
+                self.assertEqual(env['DISTUTILS_USE_SDK'], '1')
+                self.assertNotIn('GITHUB_TOKEN', env)
+
     def test_matrix_has_one_build_per_platform_and_all_test_pairs(self) -> None:
         platforms = list(load_platforms()['platforms'])
         value = matrices('a' * 40, platforms, 'debug')
@@ -79,7 +94,11 @@ class ActionsTests(unittest.TestCase):
                             self.assertIn('@PCbuild/snake-pit-assertions.rsp', argv)
                             self.assertEqual(response.read_text(), '/p:_DebugPreprocessorDefinition=\n')
                         self.assertEqual(python.name, 'python_d.exe' if config.debug else 'python.exe')
-                        self.assertEqual(python.parent.name, 'amd64t' if config.freethreading else 'amd64')
+                        binary = build_interpreter(source, platform, mode)
+                        self.assertEqual(binary.parent.name, 'amd64t' if config.freethreading else 'amd64')
+                        layout = commands.call_args_list[1].args[0]
+                        self.assertIn('--include-dev', layout)
+                        self.assertEqual('--include-freethreaded' in layout, config.freethreading)
                     else:
                         self.assertEqual('--with-pydebug' in argv, config.debug)
                         self.assertEqual('--without-pydebug' in argv, not config.debug)
@@ -100,9 +119,9 @@ class ActionsTests(unittest.TestCase):
         self.assertEqual(set(load_recipes()), {p['name'] for p in load_projects()})
 
     def test_windows_interpreter_layouts(self) -> None:
-        self.assertEqual(interpreter(Path('source'), 'i686-pc-windows-msvc', 'debug'),
+        self.assertEqual(build_interpreter(Path('source'), 'i686-pc-windows-msvc', 'debug'),
                          Path('source/PCbuild/win32/python_d.exe'))
-        self.assertEqual(interpreter(Path('source'), 'x86_64-pc-windows-msvc', 'release-freethreading'),
+        self.assertEqual(build_interpreter(Path('source'), 'x86_64-pc-windows-msvc', 'release-freethreading'),
                          Path('source/PCbuild/amd64t/python.exe'))
 
     def test_build_archives_generated_headers_and_restores_verified_interpreter(self) -> None:
@@ -116,6 +135,9 @@ class ActionsTests(unittest.TestCase):
             python = interpreter(source, 'x86_64-unknown-linux-gnu', 'debug')
             python.parent.mkdir(parents=True)
             python.write_bytes(b'trusted fixture interpreter')
+            headers = source / 'install/include/python3.16'
+            headers.mkdir(parents=True)
+            (headers / 'Python.h').write_text('installed development header')
             (source / 'pyconfig.h').write_text('generated target header')
             artifact = root / 'artifact'
             with patch('snake_pit.actions.subprocess.check_output', return_value='a' * 40), \
@@ -124,8 +146,11 @@ class ActionsTests(unittest.TestCase):
                 build(source, artifact, 'a' * 40, 'x86_64-unknown-linux-gnu', 'debug')
             deps.assert_called_once_with(source.resolve(), 'x86_64-unknown-linux-gnu')
             self.assertIn('--with-pydebug', commands.call_args_list[0].args[0])
+            self.assertIn(f'--prefix={source.resolve() / "install"}', commands.call_args_list[0].args[0])
+            self.assertEqual(commands.call_args_list[-1].args[0], ['make', 'install', 'ENSUREPIP=no'])
             with tarfile.open(artifact / 'cpython.tar.gz') as tar:
                 self.assertIn('cpython/pyconfig.h', tar.getnames())
+                self.assertIn('cpython/install/include/python3.16/Python.h', tar.getnames())
                 self.assertNotIn('cpython/.git', tar.getnames())
             restored = restore(artifact, source, 'a' * 40, 'x86_64-unknown-linux-gnu', 'debug')
             self.assertEqual(restored.read_bytes(), b'trusted fixture interpreter')
@@ -143,7 +168,7 @@ class ActionsTests(unittest.TestCase):
             work = root / 'work'
             sdist_root = root / 'fixture-1.0'
             sdist_root.mkdir()
-            (sdist_root / 'pyproject.toml').write_text('[build-system]\nrequires=[]\n')
+            (sdist_root / 'pyproject.toml').write_text('[build-system]\nrequires=["meson-python>=0.15", "numpy"]\n')
             source_tar = root / 'source.tar.gz'
             with tarfile.open(source_tar, 'w:gz') as tar:
                 tar.add(sdist_root, arcname=sdist_root.name)
@@ -181,6 +206,9 @@ class ActionsTests(unittest.TestCase):
             self.assertTrue((output / 'wheels/fixture.whl').exists())
             self.assertIn('setuptools', (output / 'runtime-test.in').read_text().splitlines())
             self.assertIn('wheel', (output / 'runtime-test.in').read_text().splitlines())
+            tools = (output / 'tools.in').read_text().splitlines()
+            self.assertIn('meson-python>=0.15', tools)
+            self.assertNotIn('numpy', tools)
 
     def test_unsupported_project_platform_pair_needs_no_build_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

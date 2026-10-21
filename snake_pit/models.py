@@ -28,6 +28,8 @@ class Recipe(TypedDict):
     tests: str
     dependencies: list[str]
     build_dependencies: NotRequired[list[str]]
+    import_mode: NotRequired[str]
+    test_source: NotRequired[str]
     installed: NotRequired[bool]
     adapter: NotRequired[str]
     selection: NotRequired[list[str]]

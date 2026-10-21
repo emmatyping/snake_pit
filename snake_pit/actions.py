@@ -80,11 +80,18 @@ def call(argv: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
 def interpreter(source: Path, platform: str, mode: str) -> Path:
     config = parse_mode(mode)
     if 'windows' in platform:
+        return source / 'install' / ('python_d.exe' if config.debug else 'python.exe')
+    return source / 'install/bin/python3'
+
+
+def build_interpreter(source: Path, platform: str, mode: str) -> Path:
+    config = parse_mode(mode)
+    if 'windows' in platform:
         arch = 'win32' if platform.startswith('i686') else 'amd64'
         if config.freethreading:
             arch += 't'
         return source / 'PCbuild' / arch / ('python_d.exe' if config.debug else 'python.exe')
-    return source / 'install/bin/python3'
+    return source / ('python.exe' if 'apple' in platform else 'python')
 
 
 def dependencies(source: Path, platform: str) -> None:
@@ -124,6 +131,15 @@ def build(source: Path, output: Path, commit: str, platform: str, mode: str) -> 
             response.write_text('/p:_DebugPreprocessorDefinition=\n')
             argv.append('@PCbuild/snake-pit-assertions.rsp')
         call(argv, source, env)
+        binary = build_interpreter(source, platform, mode)
+        layout = [str(binary), str(source / 'PC/layout/main.py'), '-s', str(source),
+                  '-b', str(binary.parent), '--copy', str(source / 'install'),
+                  '--include-dev', '--include-tests', '--include-venv', '--include-stable', '--include-alias']
+        if config.debug:
+            layout.append('--debug')
+        if config.freethreading:
+            layout.append('--include-freethreaded')
+        call(layout, source, env)
     else:
         flags = ['./configure', '--config-cache', f'--prefix={source / "install"}', '--with-ensurepip=no']
         if config.debug:

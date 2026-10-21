@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -46,7 +47,7 @@ def environment() -> dict[str, str]:
              'INCLUDE', 'LIB', 'LIBPATH', 'VCINSTALLDIR', 'VSINSTALLDIR', 'VCToolsInstallDir',
              'WindowsSdkDir', 'WindowsSDKVersion', 'VSCMD_ARG_TGT_ARCH', 'PKG_CONFIG_PATH')
     env = {key: os.environ[key] for key in names if key in os.environ}
-    env.update(PYTHONFAULTHANDLER='1', PYTHONUNBUFFERED='1', UV_NO_CONFIG='1',
+    env.update(PYTHONFAULTHANDLER='1', PYTHONUNBUFFERED='1', PYTHONUTF8='1', UV_NO_CONFIG='1',
                UV_PYTHON_DOWNLOADS='never', UV_DEFAULT_INDEX='https://pypi.org/simple',
                CARGO_TERM_COLOR='never', OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1')
     return env
@@ -64,6 +65,29 @@ def download(project: Project, destination: Path) -> None:
             stream.write(chunk)
     if sha256(destination) != sdist['sha256']:
         raise ValueError('locked sdist digest mismatch')
+
+
+def windows_compiler_environment(platform: str, work: Path, env: dict[str, str]) -> None:
+    """Configure the native compiler for the target, including VS 2026 runners."""
+    installer = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)')) / 'Microsoft Visual Studio/Installer'
+    installation = subprocess.check_output([str(installer / 'vswhere.exe'), '-latest', '-products', '*',
+        '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath'],
+        text=True).strip()
+    if not installation:
+        raise ValueError('Visual C++ toolchain was not found')
+    arch = 'x86' if platform.startswith('i686') else 'amd64'
+    script = work / 'compiler-environment.cmd'
+    developer = Path(installation) / 'Common7/Tools/VsDevCmd.bat'
+    script.write_text(f'@echo off\ncall "{developer}" -no_logo -arch={arch} -host_arch=amd64\n'
+                      'if errorlevel 1 exit /b %errorlevel%\nset\n')
+    settings = subprocess.check_output([os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c', str(script)], text=True)
+    allowed = {'PATH', 'INCLUDE', 'LIB', 'LIBPATH', 'VCINSTALLDIR', 'VSINSTALLDIR', 'VCTOOLSINSTALLDIR',
+               'WINDOWSSDKDIR', 'WINDOWSSDKVERSION', 'VSCMD_ARG_TGT_ARCH', 'UNIVERSALCRTSDKDIR', 'UCRTVERSION'}
+    for line in settings.splitlines():
+        name, separator, value = line.partition('=')
+        if separator and name.upper() in allowed:
+            env[name.upper()] = value
+    env.update(DISTUTILS_USE_SDK='1', MSSdk='1')
 
 
 def run_project(project_name: str, commit: str, platform: str, mode: str,
@@ -120,6 +144,9 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         # Restore the same shared system dependencies as the build runner.
         current_stage = 'system-dependencies'
         dependencies(ROOT / 'cpython', platform)
+        if 'windows' in platform:
+            current_stage = 'compiler-environment'
+            windows_compiler_environment(platform, work, env)
         if 'linux' in platform and recipe.get('linux'):
             stage('native-dependencies', ['sudo', 'apt-get', 'install', '-y', *recipe['linux']])
         elif 'apple' in platform and recipe.get('macos'):
@@ -173,8 +200,15 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         # Seed the common backend before building any source-only build dependencies.
         # Keep these tools in the final lock: pip sync would otherwise uninstall them
         # before compiling transitive dependencies such as MarkupSafe.
+        backend_names = {'setuptools', 'wheel', 'meson-python', 'meson', 'ninja', 'cython', 'pybind11',
+                         'setuptools-scm', 'setuptools-rust', 'maturin'}
+        tools = ['setuptools', 'wheel', *recipe.get('build_dependencies', [])]
+        for requirement in build_requires:
+            name = re.match(r'[A-Za-z0-9_.-]+', requirement)
+            if name and name[0].lower().replace('_', '-') in backend_names:
+                tools.append(requirement)
         tools_input = output / 'tools.in'
-        tools_input.write_text('setuptools\nwheel\n')
+        tools_input.write_text('\n'.join(tools) + '\n')
         tools_lock = output / 'pylock.tools.toml'
         stage('resolve-tools', [uv, 'pip', 'compile', '--python', str(target),
                                 str(tools_input), '-o', str(tools_lock)])
@@ -213,18 +247,28 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             result['test_selection'] = selection
             stage('test', command)
         else:
+            test_cwd = work if recipe.get('installed') else checkout
             if recipe.get('installed'):
                 location = subprocess.check_output([str(target), '-c',
                     f'import {module}, pathlib; print(pathlib.Path({module}.__file__).parent)'], cwd=work,
                     env=env, text=True).strip()
                 tests = Path(location) / recipe['tests']
+                if recipe.get('test_source'):
+                    shutil.copytree(checkout / recipe['test_source'], tests, dirs_exist_ok=True)
             else:
                 tests = checkout / recipe['tests']
             result['test_selection'] = [str(tests)]
             # Load upstream configuration/plugins but don't add source packages to sys.path.
-            command = [str(target), '-m', 'pytest', '--import-mode=importlib', '-o', 'pythonpath=', str(tests)]
-            stage('collect', [*command, '--collect-only', '-qq'], framework='pytest')
-            stage('test', [*command, f'--junitxml={output / "tests.xml"}'], framework='pytest', timeout=1800)
+            if recipe.get('installed'):
+                # Import installed tests under their canonical package names. Using
+                # importlib mode on site-packages paths can import NumPy twice.
+                package = module + '.' + recipe['tests'].replace('/', '.')
+                command = [str(target), '-m', 'pytest', '-o', 'pythonpath=', '--pyargs', package]
+            else:
+                import_mode = recipe.get('import_mode', 'importlib')
+                command = [str(target), '-P', '-m', 'pytest', f'--import-mode={import_mode}', '-o', 'pythonpath=', str(tests)]
+            stage('collect', [*command, '--collect-only', '-qq'], test_cwd, framework='pytest')
+            stage('test', [*command, f'--junitxml={output / "tests.xml"}'], test_cwd, framework='pytest', timeout=1800)
         result['status'] = 'passed'
     except PhaseFailed:
         pass

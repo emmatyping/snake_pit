@@ -118,13 +118,16 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(result['status'], 'timeout')
 
     def test_noisy_process_is_drained_with_bounded_log(self) -> None:
-        phase: Phase = dict(name='test', argv=[sys.executable, '-c', f'import sys; sys.stdout.write("x" * {LOG_LIMIT + 123})'],
+        phase: Phase = dict(name='test', argv=[sys.executable, '-c',
+                     f'import sys; sys.stdout.write("x" * {LOG_LIMIT + 123} + "final diagnostic")'],
                      timeout_seconds=10)
         result = run_phase(phase, self.root, self.root, dict(os.environ))
         self.assertEqual(result['status'], 'passed')
         self.assertTrue(result['log_truncated'])
         self.assertEqual((self.root / 'test.log').stat().st_size, LOG_LIMIT)
-        self.assertEqual((self.root / 'test.tail.log').read_bytes(), b'x' * 65536)
+        tail = (self.root / 'test.tail.log').read_bytes()
+        self.assertEqual(len(tail), 65536)
+        self.assertTrue(tail.endswith(b'final diagnostic'))
 
 
 if __name__ == '__main__':
