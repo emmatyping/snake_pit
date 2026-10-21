@@ -180,7 +180,7 @@ commit = "2f6968cc126d4da2d2eabc5a51285472bb9bfc9e"
 tag = "rel_{version_underscores}"
 module = "sqlalchemy"
 tests = "test"
-dependencies = ["pytest", "pytest-xdist", "greenlet", "aiosqlite"]
+dependencies = ["pytest", "pytest-xdist", "greenlet", "aiosqlite", "mypy"]
 
 [hypothesis]
 version = "6.170.5"
@@ -191,7 +191,7 @@ commit = "6dda9ecc8a2b6e3eab192c85bf9082b4eccdb068"
 tag = "v{version}"
 module = "hypothesis"
 tests = "hypothesis/tests/cover"
-dependencies = ["pytest", "attrs", "pexpect; sys_platform != 'win32'", "python-dateutil", "pytz"]
+dependencies = ["pytest", "attrs", "pexpect; sys_platform != 'win32'", "python-dateutil", "pytz", "syrupy"]
 
 [click]
 import_mode = "prepend"
