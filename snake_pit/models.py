@@ -27,6 +27,7 @@ class Recipe(TypedDict):
     module: str
     tests: str
     dependencies: list[str]
+    build_dependencies: NotRequired[list[str]]
     installed: NotRequired[bool]
     adapter: NotRequired[str]
     selection: NotRequired[list[str]]

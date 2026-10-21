@@ -113,7 +113,9 @@ class ActionsTests(unittest.TestCase):
             (source / '.git').mkdir()
             (source / '.git/secret').write_text('must not be archived')
             (source / 'configure').write_text('--enable-safety --enable-slower-safety')
-            (source / 'python').write_bytes(b'trusted fixture interpreter')
+            python = interpreter(source, 'x86_64-unknown-linux-gnu', 'debug')
+            python.parent.mkdir(parents=True)
+            python.write_bytes(b'trusted fixture interpreter')
             (source / 'pyconfig.h').write_text('generated target header')
             artifact = root / 'artifact'
             with patch('snake_pit.actions.subprocess.check_output', return_value='a' * 40), \
@@ -159,7 +161,7 @@ class ActionsTests(unittest.TestCase):
                     wheels = Path(argv[argv.index('--out-dir') + 1])
                     wheels.mkdir()
                     (wheels / 'fixture.whl').write_text('trusted fixture')
-                elif phase['name'] in ('resolve-build', 'resolve-tests'):
+                elif phase['name'] in ('resolve-tools', 'resolve-build', 'resolve-tests'):
                     Path(argv[-1]).write_text('lock-version="1.0"\npackages=[]\n')
                 return {'name': phase['name'], 'argv': argv,
                         'status': 'failed' if phase['name'] == 'collect' else 'passed', 'returncode': 5}
@@ -177,6 +179,8 @@ class ActionsTests(unittest.TestCase):
             self.assertEqual(json.loads((output / 'result.json').read_text()), result)
             self.assertIn('pylock.toml', result['artifacts'])
             self.assertTrue((output / 'wheels/fixture.whl').exists())
+            self.assertIn('setuptools', (output / 'runtime-test.in').read_text().splitlines())
+            self.assertIn('wheel', (output / 'runtime-test.in').read_text().splitlines())
 
     def test_unsupported_project_platform_pair_needs_no_build_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

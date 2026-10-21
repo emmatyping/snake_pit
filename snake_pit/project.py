@@ -101,6 +101,8 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             result['status'] = outcome['status']
             result['failed_phase'] = name
             log = output / f'{name}.log'
+            if log.with_suffix('.tail.log').exists():
+                log = log.with_suffix('.tail.log')
             if log.exists():
                 print(log.read_text(errors='replace')[-12000:], flush=True)
             raise PhaseFailed(name)
@@ -168,8 +170,18 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         pyproject = source / 'pyproject.toml'
         config = tomllib.loads(pyproject.read_text()) if pyproject.exists() else {}
         build_requires = cast(list[str], config.get('build-system', {}).get('requires', ['setuptools', 'wheel']))
+        # Seed the common backend before building any source-only build dependencies.
+        # Keep these tools in the final lock: pip sync would otherwise uninstall them
+        # before compiling transitive dependencies such as MarkupSafe.
+        tools_input = output / 'tools.in'
+        tools_input.write_text('setuptools\nwheel\n')
+        tools_lock = output / 'pylock.tools.toml'
+        stage('resolve-tools', [uv, 'pip', 'compile', '--python', str(target),
+                                str(tools_input), '-o', str(tools_lock)])
+        stage('bootstrap-tools', [uv, 'pip', 'sync', '--python', str(target), str(tools_lock)])
+        build_requires = [*build_requires, 'setuptools', 'wheel', *recipe.get('build_dependencies', [])]
         build_input = output / 'build.in'
-        build_input.write_text('\n'.join([*build_requires, 'wheel']) + '\n')
+        build_input.write_text('\n'.join(build_requires) + '\n')
         build_lock = output / 'pylock.build.toml'
         stage('resolve-build', [uv, 'pip', 'compile', '--python', str(target), '--prerelease=allow',
                                 '--no-build-isolation', str(build_input), '-o', str(build_lock)])
@@ -186,7 +198,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             raise ValueError('expected exactly one wheel from project build')
         result['artifacts'][built[0].name] = sha256(built[0])
         inputs = output / 'runtime-test.in'
-        inputs.write_text('\n'.join([built[0].as_uri(),
+        inputs.write_text('\n'.join([built[0].as_uri(), *build_requires,
                                       *[d.format(version=selected['release']) for d in recipe['dependencies']]]) + '\n')
         lock = output / 'pylock.toml'
         stage('resolve-tests', [uv, 'pip', 'compile', '--python', str(target), '--no-build-isolation',
@@ -211,7 +223,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             result['test_selection'] = [str(tests)]
             # Load upstream configuration/plugins but don't add source packages to sys.path.
             command = [str(target), '-m', 'pytest', '--import-mode=importlib', '-o', 'pythonpath=', str(tests)]
-            stage('collect', [*command, '--collect-only', '-q'], framework='pytest')
+            stage('collect', [*command, '--collect-only', '-qq'], framework='pytest')
             stage('test', [*command, f'--junitxml={output / "tests.xml"}'], framework='pytest', timeout=1800)
         result['status'] = 'passed'
     except PhaseFailed:

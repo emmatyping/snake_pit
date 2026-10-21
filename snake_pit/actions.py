@@ -84,7 +84,7 @@ def interpreter(source: Path, platform: str, mode: str) -> Path:
         if config.freethreading:
             arch += 't'
         return source / 'PCbuild' / arch / ('python_d.exe' if config.debug else 'python.exe')
-    return source / ('python.exe' if 'apple' in platform else 'python')
+    return source / 'install/bin/python3'
 
 
 def dependencies(source: Path, platform: str) -> None:
@@ -125,7 +125,7 @@ def build(source: Path, output: Path, commit: str, platform: str, mode: str) -> 
             argv.append('@PCbuild/snake-pit-assertions.rsp')
         call(argv, source, env)
     else:
-        flags = ['./configure', '--config-cache']
+        flags = ['./configure', '--config-cache', f'--prefix={source / "install"}', '--with-ensurepip=no']
         if config.debug:
             flags.append('--with-pydebug')
         else:
@@ -149,6 +149,9 @@ def build(source: Path, output: Path, commit: str, platform: str, mode: str) -> 
             env['CC'] = 'gcc'
         call(flags, source, env)
         call(['gmake' if 'apple' in platform else 'make', f'-j{os.cpu_count() or 2}'], source, env)
+        # Meson and other extension builders require installed headers and sysconfig
+        # paths; an in-tree interpreter alone does not provide that layout.
+        call(['gmake' if 'apple' in platform else 'make', 'install', 'ENSUREPIP=no'], source, env)
     python = interpreter(source, platform, mode)
     output.mkdir(parents=True, exist_ok=True)
     with (output / 'pythoninfo.txt').open('w') as stream:

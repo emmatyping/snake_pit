@@ -100,11 +100,18 @@ def run_phase(phase: Phase, root: Path, output: Path, env: dict[str, str]) -> Ph
     assert pipe is not None  # Popen was configured with stdout=PIPE.
 
     def drain() -> None:
+        tail = bytearray()
         with pipe, log.open('wb') as stream:
             while chunk := pipe.read(65536):
                 before = counts['log_bytes']
                 counts['log_bytes'] += len(chunk)
                 stream.write(chunk[:max(0, LOG_LIMIT - before)])
+                tail.extend(chunk)
+                del tail[:-65536]
+        # Retain final diagnostics even when verbose collection/build output fills
+        # the primary log before the error is emitted.
+        if counts['log_bytes'] > LOG_LIMIT:
+            log.with_suffix('.tail.log').write_bytes(tail)
 
     reader = threading.Thread(target=drain, daemon=True)
     reader.start()

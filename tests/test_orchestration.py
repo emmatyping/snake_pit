@@ -124,6 +124,7 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(result['status'], 'passed')
         self.assertTrue(result['log_truncated'])
         self.assertEqual((self.root / 'test.log').stat().st_size, LOG_LIMIT)
+        self.assertEqual((self.root / 'test.tail.log').read_bytes(), b'x' * 65536)
 
 
 if __name__ == '__main__':
