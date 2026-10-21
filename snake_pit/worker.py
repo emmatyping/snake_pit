@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import signal
 import subprocess
+import sys
 import threading
 import time
 import tomllib
@@ -24,6 +25,7 @@ def sha256(path: Path) -> str:
 
 
 def inside(root: Path, name: str) -> Path:
+    root = root.resolve()
     path = (root / name).resolve()
     if not path.is_relative_to(root):
         raise ValueError(f'path outside job bundle: {name}')
@@ -68,7 +70,7 @@ def validate(job: Job, root: Path) -> None:
 
 
 def stop_tree(process: subprocess.Popen[bytes]) -> None:
-    if os.name == 'posix':
+    if sys.platform != 'win32':
         try:
             os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:

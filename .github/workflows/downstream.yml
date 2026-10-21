@@ -73,4 +73,5 @@ jobs:
       runner: ${{ matrix.runner }}
       mode: ${{ inputs.mode }}
       projects: ${{ needs.plan.outputs.projects }}
-      max_parallel: ${{ inputs.max_parallel }}
+      # Normalize dispatch input types before the reusable workflow's number check.
+      max_parallel: ${{ fromJSON(format('{0}', inputs.max_parallel)) }}

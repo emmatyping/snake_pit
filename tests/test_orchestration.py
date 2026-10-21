@@ -9,7 +9,7 @@ import unittest
 from snake_pit.__main__ import plan
 from snake_pit.dependencies import load_projects
 from snake_pit.models import Job, Phase, RunResult
-from snake_pit.worker import LOG_LIMIT, PHASES, run_job, run_phase, sha256
+from snake_pit.worker import LOG_LIMIT, PHASES, inside, run_job, run_phase, sha256
 
 
 class PlanningTests(unittest.TestCase):
@@ -67,6 +67,19 @@ class WorkerTests(unittest.TestCase):
         self.job['artifacts'] = {'../outside': 'c' * 64}
         with self.assertRaisesRegex(ValueError, 'outside job bundle'):
             self.run_job()
+
+    @unittest.skipUnless(os.name == 'posix', 'requires unprivileged directory symlinks')
+    def test_bundle_root_symlink_is_resolved_without_allowing_escape(self) -> None:
+        bundle = self.root / 'bundle'
+        bundle.mkdir()
+        alias = self.root / 'alias'
+        alias.symlink_to(bundle, target_is_directory=True)
+        self.assertEqual(inside(alias, '.'), bundle.resolve())
+        self.assertEqual(inside(alias, 'pylock.toml'), bundle.resolve() / 'pylock.toml')
+        (bundle / 'escape').symlink_to(self.root, target_is_directory=True)
+        for name in ('..', 'escape'):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'outside job bundle'):
+                inside(alias, name)
 
     def test_failure_retains_phase_and_skips_later_commands(self) -> None:
         self.job['phases'][1]['argv'] = [sys.executable, '-c', 'raise SystemExit(7)']
