@@ -167,6 +167,7 @@ adapter = "django"
 selection = ["basic", "dates", "datetimes", "cache", "admin_checks"]
 # Pillow is a test dependency and must build from source on unreleased Python.
 build_dependencies = ["pybind11"]
+windows = ["libjpeg-turbo", "zlib"]
 linux = ["libjpeg-dev", "zlib1g-dev"]
 macos = ["jpeg-turbo"]
 dependencies = ["pytest", "jinja2", "PyYAML", "pillow"]
@@ -233,6 +234,7 @@ installed = true
 dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil", "pytz", "tzdata"]
 
 [pillow]
+windows = ["libjpeg-turbo", "zlib"]
 import_mode = "prepend"
 version = "13.0.0"
 sdist_url = "https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz"
@@ -254,9 +256,8 @@ repository = "https://github.com/lxml/lxml"
 commit = "3c1a4c7f2d5a3c19efe01adfd3c33ac3c8fe52c1"
 tag = "lxml-{version}"
 module = "lxml"
-tests = "tests"
-installed = true
-test_source = "src/lxml/tests"
+tests = "src/lxml/tests"
+adapter = "lxml"
 dependencies = ["pytest", "cssselect", "beautifulsoup4", "html5lib", "lxml_html_clean"]
 linux = ["libxml2-dev", "libxslt1-dev"]
 macos = ["libxml2", "libxslt"]
@@ -273,6 +274,7 @@ tests = "test"
 dependencies = ["pytest"]
 
 [psutil]
+pytest_args = ["-p", "junitxml"]
 version = "7.2.2"
 sdist_url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz"
 sdist_sha256 = "0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"
@@ -281,7 +283,7 @@ commit = "9eea97dd6f1d16ea33f5144c8925f1ce7a0688e1"
 tag = "release-{version}"
 module = "psutil"
 tests = "tests"
-dependencies = ["pytest", "pytest-xdist"]
+dependencies = ["pytest", "pytest-xdist", "psutil[test]=={version}"]
 
 [orjson]
 build_dependencies = ["meson-python", "Cython", "ninja"]

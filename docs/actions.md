@@ -79,7 +79,10 @@ POSIX builds run `make install` into `cpython/install` so extension builders suc
 as Meson can discover installed headers and sysconfig paths. Windows uses the
 `PC/layout/main.py` with development headers, import libraries, and test helpers.
 Windows project jobs initialize Visual Studio for the target architecture before
-building extensions.
+building extensions. Recipes can list Windows native dependencies in `windows`;
+they are built with vcpkg in a job-local static-library layout
+using the target build's dynamic CRT and debug/release configuration. This supplies Pillow's JPEG and zlib dependencies without
+requiring extra runtime DLL search paths.
 
 Each platform uploads `cpython-<target>-<mode>` containing the tarred build tree,
 `build.json`, and `pythoninfo.txt`. The archive preserves executable bits, headers,
@@ -99,16 +102,17 @@ Most use release-tagged upstream tests; the resolved commit is checked against t
 recipe pin. A recipe can instead use tests included in the hash-verified sdist.
 NumPy, pandas and greenlet use tests from the installed package, collected with
 pytest's default import mode on their installed paths. This also supports test
-directories without `__init__.py`. lxml overlays its pinned upstream test
-sources into the installed package without replacing its built extensions. Django runs a
+directories without `__init__.py`. lxml uses its native `test.py --no-src` runner
+so its `test_suite()` factories and doctests run correctly, while imports use
+the installed extensions and pinned upstream test helpers. Django runs a
 named SQLite subset through its own runner. Other recipes use pytest with separate
 collection and execution phases, and JUnit output. Empty collection is a failure.
-Test execution stops after ten failures so incompatible suites produce useful
+Pytest execution stops after ten failures so incompatible suites produce useful
 diagnostics without running thousands of already-blocked cases. Upstream suites
 run from their checkout with the current directory excluded from Python's default
 import path; recipes can select `import_mode = "prepend"` when their test helpers
-require it. `test_source` specifies upstream tests to overlay into an installed
-package before collection.
+require it. `pytest_args` adds recipe-specific options, such as enabling JUnit
+output when an upstream configuration disables its plugin.
 
 The job reads the selected version and sdist digest from [data/recipes.toml](../data/recipes.toml),
 downloads that exact sdist and verifies its digest, creates a

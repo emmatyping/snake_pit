@@ -16,7 +16,7 @@ from .__main__ import ROOT, load_platforms, plan
 from .actions import dependencies, restore
 from .dependencies import load_projects, load_recipes
 from .models import Phase, PhaseResult, Project
-from .modes import DEFAULT_MODE, MODES
+from .modes import DEFAULT_MODE, MODES, parse_mode
 from .worker import run_phase, sha256
 
 
@@ -44,6 +44,7 @@ class PhaseFailed(Exception):
 
 def environment() -> dict[str, str]:
     names = ('PATH', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE',
+             'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'SystemDrive', 'APPDATA', 'LOCALAPPDATA', 'COMSPEC',
              'INCLUDE', 'LIB', 'LIBPATH', 'VCINSTALLDIR', 'VSINSTALLDIR', 'VCToolsInstallDir',
              'WindowsSdkDir', 'WindowsSDKVersion', 'VSCMD_ARG_TGT_ARCH', 'PKG_CONFIG_PATH')
     env = {key: os.environ[key] for key in names if key in os.environ}
@@ -90,6 +91,14 @@ def windows_compiler_environment(platform: str, work: Path, env: dict[str, str])
     # Explicit compilers also bypass Meson's auto-detected Strawberry Perl ccache,
     # which is broken on the current hosted Windows image.
     env.update(DISTUTILS_USE_SDK='1', MSSdk='1', CC='cl', CXX='cl')
+
+
+def lxml_command(python: Path, checkout: Path) -> list[str]:
+    wrapper = ('import lxml, runpy, sys; lxml.__path__.append(sys.argv[1]); '
+               'runner = sys.argv[2]; sys.argv = sys.argv[2:]; '
+               'runpy.run_path(runner, run_name="__main__")')
+    return [str(python), '-P', '-c', wrapper, str(checkout / 'src/lxml'),
+            str(checkout / 'test.py'), '--no-src']
 
 
 def run_project(project_name: str, commit: str, platform: str, mode: str,
@@ -153,6 +162,25 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             stage('native-dependencies', ['sudo', 'apt-get', 'install', '-y', *recipe['linux']])
         elif 'apple' in platform and recipe.get('macos'):
             stage('native-dependencies', ['brew', 'install', *recipe['macos']])
+        elif 'windows' in platform and recipe.get('windows'):
+            # Build static libraries with the same dynamic CRT as target CPython;
+            # this avoids depending on extra DLL search paths in each test process.
+            arch = 'x86' if platform.startswith('i686') else 'x64'
+            build_type = 'debug' if parse_mode(mode).debug else 'release'
+            triplet = f'{arch}-snake-pit'
+            triplets = work / 'triplets'
+            triplets.mkdir()
+            (triplets / f'{triplet}.cmake').write_text(
+                f'set(VCPKG_TARGET_ARCHITECTURE {arch})\nset(VCPKG_CRT_LINKAGE dynamic)\n'
+                f'set(VCPKG_LIBRARY_LINKAGE static)\nset(VCPKG_BUILD_TYPE {build_type})\n')
+            native = work / 'native'
+            vcpkg = Path(os.environ.get('VCPKG_INSTALLATION_ROOT', 'C:/vcpkg')) / 'vcpkg.exe'
+            stage('native-dependencies', [str(vcpkg), 'install', *recipe['windows'],
+                f'--triplet={triplet}', f'--overlay-triplets={triplets}', f'--x-install-root={native}'])
+            prefix = native / triplet
+            env['INCLUDE'] = str(prefix / 'include') + ';' + env.get('INCLUDE', '')
+            libraries = prefix / ('debug/lib' if build_type == 'debug' else 'lib')
+            env['LIB'] = str(libraries) + ';' + env.get('LIB', '')
         if platform == 'i686-pc-windows-msvc':
             stage('rust-target', ['rustup', 'target', 'add', 'i686-pc-windows-msvc'])
             env['CARGO_BUILD_TARGET'] = 'i686-pc-windows-msvc'
@@ -254,6 +282,16 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             command = [str(target), str(checkout / 'tests/runtests.py'), '--settings=test_sqlite', *selection]
             result['test_selection'] = selection
             stage('test', command)
+        elif recipe.get('adapter') == 'lxml':
+            # lxml builds suites through test_suite(); pytest also collects its
+            # uninitialized base classes. Keep the built extensions installed and
+            # add only the pinned upstream helpers to the package search path.
+            command = lxml_command(target, checkout)
+            result['test_selection'] = [str(checkout / recipe['tests'])]
+            stage('collect', [*command, '--list-tests'], checkout)
+            if not (output / 'collect.log').read_text().strip():
+                raise ValueError('lxml collected no tests')
+            stage('test', command, checkout, timeout=1800)
         else:
             test_cwd = work if recipe.get('installed') else checkout
             if recipe.get('installed'):
@@ -261,8 +299,6 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
                     f'import {module}, pathlib; print(pathlib.Path({module}.__file__).parent)'], cwd=work,
                     env=env, text=True).strip()
                 tests = Path(location) / recipe['tests']
-                if recipe.get('test_source'):
-                    shutil.copytree(checkout / recipe['test_source'], tests, dirs_exist_ok=True)
             else:
                 tests = checkout / recipe['tests']
             result['test_selection'] = [str(tests)]
@@ -272,6 +308,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             # avoids re-importing native modules under a second name.
             import_mode = 'prepend' if recipe.get('installed') else recipe.get('import_mode', 'importlib')
             command = [str(target), '-P', '-m', 'pytest', f'--import-mode={import_mode}', '-o', 'pythonpath=', str(tests)]
+            command.extend(recipe.get('pytest_args', []))
             stage('collect', [*command, '--collect-only', '-qq'], test_cwd, framework='pytest')
             stage('test', [*command, '--maxfail=10', f'--junitxml={output / "tests.xml"}'],
                   test_cwd, framework='pytest', timeout=1800)

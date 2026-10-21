@@ -1,7 +1,9 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -13,10 +15,42 @@ from snake_pit.actions import build, build_interpreter, interpreter, matrices, r
 from snake_pit.dependencies import load_projects, load_recipes
 from snake_pit.models import Phase, PhaseResult
 from snake_pit.modes import MODES, parse_mode
-from snake_pit.project import run_project, windows_compiler_environment
+from snake_pit.project import environment, lxml_command, run_project, windows_compiler_environment
 
 
 class ActionsTests(unittest.TestCase):
+    def test_environment_retains_windows_paths_without_ci_credentials(self) -> None:
+        paths = {'ProgramFiles': 'programs', 'ProgramFiles(x86)': 'programs-x86',
+                 'LOCALAPPDATA': 'local-data', 'APPDATA': 'app-data'}
+        with patch.dict(os.environ, {**paths, 'GITHUB_TOKEN': 'secret'}, clear=True):
+            env = environment()
+        for key, value in paths.items():
+            self.assertEqual(env[key], value)
+        self.assertNotIn('GITHUB_TOKEN', env)
+
+    def test_lxml_adapter_uses_installed_package_and_pinned_source_helpers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installed = root / 'installed/lxml'
+            installed.mkdir(parents=True)
+            (installed / '__init__.py').write_text('backend = "installed"\n')
+            checkout = root / 'upstream'
+            source = checkout / 'src/lxml'
+            helpers = source / 'tests'
+            helpers.mkdir(parents=True)
+            (source / '__init__.py').write_text('raise AssertionError("source package shadowed wheel")\n')
+            (helpers / '__init__.py').write_text('')
+            (helpers / 'fixture.py').write_text('from pathlib import Path\nlocation = Path(__file__)\n')
+            (checkout / 'test.py').write_text(
+                'import lxml, sys\nfrom pathlib import Path\nfrom lxml.tests import fixture\n'
+                'assert lxml.backend == "installed"\n'
+                'assert fixture.location.is_relative_to(Path(__file__).parent)\n'
+                'assert sys.argv[1:] == ["--no-src", "--list-tests"]\n'
+                'print("lxml.tests.fixture.test")\n')
+            output = subprocess.check_output([*lxml_command(Path(sys.executable), checkout), '--list-tests'],
+                cwd=root, env=dict(os.environ, PYTHONPATH=str(installed.parent)), text=True)
+            self.assertEqual(output.strip(), 'lxml.tests.fixture.test')
+
     def test_windows_compiler_environment_uses_target_and_filters_credentials(self) -> None:
         for platform, arch in [('i686-pc-windows-msvc', 'x86'), ('x86_64-pc-windows-msvc', 'amd64')]:
             with self.subTest(platform=platform), tempfile.TemporaryDirectory() as directory:
