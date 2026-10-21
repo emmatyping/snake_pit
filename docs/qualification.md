@@ -27,8 +27,8 @@ phase logs and JUnit reports where supported.
 | Projects | Passing platforms |
 | --- | --- |
 | packaging | All five platforms |
-| Click, coverage, Django's selected suites, greenlet, MessagePack, orjson, Pillow | All three POSIX platforms |
-| pandas' selected array tests | macOS ARM64 and Linux ARM64; Linux x86-64 was still running when recorded |
+| Click, coverage, Django's selected suites, greenlet, MessagePack, orjson, pandas' selected array tests, Pillow | All three POSIX platforms |
+| PyYAML | Linux x86-64, verified in the third iteration |
 
 ## Confirmed compatibility findings
 
@@ -54,8 +54,13 @@ compiler selection, avoiding the hosted image's broken Strawberry Perl ccache.
 Recipes correct moved test directories, import modes, working directories, and
 missing test dependencies. SQLAlchemy's first macOS report had 27,228 passing
 tests, 1,027 skips and 70 setup errors caused solely by missing mypy; mypy has
-been added. Hypothesis's missing snapshot fixture is supplied by syrupy. NumPy's
-namespace test directories use installed filesystem paths rather than `--pyargs`.
+been added. The Windows x86 SQLAlchemy report similarly had 26,970 passing
+tests and the same 70 missing-mypy setup errors. Hypothesis's missing snapshot
+fixture is supplied by syrupy. NumPy's namespace test directories now collect
+successfully using installed filesystem paths rather than `--pyargs`. Its next
+run reached tests but could not launch the installed `meson` executable; the
+harness now activates the venv's executable directory in `PATH` and records
+`VIRTUAL_ENV` for all project subprocesses. This last fix needs hosted verification.
 
 The latest corrections additionally preserve Windows application-directory
 environment variables, provide Pillow's native JPEG/zlib libraries with vcpkg,

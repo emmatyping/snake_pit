@@ -116,7 +116,8 @@ output when an upstream configuration disables its plugin.
 
 The job reads the selected version and sdist digest from [data/recipes.toml](../data/recipes.toml),
 downloads that exact sdist and verifies its digest, creates a
-venv using the restored target interpreter, seeds setuptools and wheel from
+venv using the restored target interpreter, adds its executable directory to
+`PATH` for build/test tools, seeds setuptools and wheel from
 `pylock.tools.toml`, installs build backends from `pylock.backends.toml`, then
 locks declared build requirements to
 `pylock.build.toml`, and installs that build environment. It builds the package's

@@ -189,8 +189,10 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             raise ValueError('uv is required on the worker PATH')
         venv = work / 'venv'
         stage('venv', [uv, 'venv', '--python', str(python), str(venv)])
-        target = venv / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-        env.update(PYO3_PYTHON=str(target), PYTHON_SYS_EXECUTABLE=str(target))
+        scripts = venv / ('Scripts' if os.name == 'nt' else 'bin')
+        target = scripts / ('python.exe' if os.name == 'nt' else 'python')
+        env.update(PATH=str(scripts) + os.pathsep + env.get('PATH', ''), VIRTUAL_ENV=str(venv),
+                   PYO3_PYTHON=str(target), PYTHON_SYS_EXECUTABLE=str(target))
 
         current_stage = 'source-download'
         sdist = work / selected['sdist']['filename']

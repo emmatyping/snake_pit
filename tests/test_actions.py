@@ -214,6 +214,10 @@ class ActionsTests(unittest.TestCase):
 
             def phase_fixture(phase: Phase, cwd: Path, logs: Path, env: dict[str, str]) -> PhaseResult:
                 argv = phase['argv']
+                if phase['name'] == 'collect':
+                    scripts = work / 'venv' / ('Scripts' if os.name == 'nt' else 'bin')
+                    self.assertEqual(env['PATH'].split(os.pathsep)[0], str(scripts))
+                    self.assertEqual(env['VIRTUAL_ENV'], str(work / 'venv'))
                 if phase['name'] == 'test-source':
                     Path(argv[-1]).mkdir()
                 elif phase['name'] == 'archive-test-source':
