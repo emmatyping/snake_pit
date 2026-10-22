@@ -268,7 +268,7 @@ class PreparedWheelTests(unittest.TestCase):
             source = wheel(root, value)
             providers = {'cffi': (root, value)}
             self.assertEqual(wheel_requirements(providers, {'cffi': value['release']}, 'requests', RECIPE_HASH),
-                             [source.as_uri()])
+                             [source.resolve().as_uri()])
             self.assertEqual(wheel_requirements(providers, {'cffi': 'other'}, 'requests', RECIPE_HASH), [])
             source.write_bytes(b'tampered')
             with self.assertRaisesRegex(ValueError, 'digest mismatch'):
