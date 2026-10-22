@@ -33,6 +33,7 @@ env:
 
 jobs:
   project:
+    name: ${{ inputs.project }} (${{ inputs.side }}, ${{ inputs.operation }})
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 60
     steps:
