@@ -31,13 +31,17 @@ separate, commit-pinned development recipe.
 
 ## Qualification pipeline
 
-The [Actions implementation](actions.md) now builds the requested interpreter and
-fans out project jobs, generating per-run locks and artifacts. The steps below
-describe the fuller qualification target, including baseline comparisons,
-complete build-closure locking and offline isolation that are not yet automated.
+The [Actions implementation](actions.md) resolves a GitHub ref and CPython main,
+builds both interpreters, probes source wheels, and gates test jobs using exact
+package identities in the resolved locks. Test outcomes remain independent of
+build availability. Candidate resolution uses the baseline's available version
+constraints, and the final report compares phases and JUnit case outcomes.
+Complete dynamic build-closure locking and offline isolation remain fuller
+qualification targets described below.
 
-1. A trusted controller accepts a full CPython SHA, one of the recorded Tier 1
-   targets, a build mode, and a baseline SHA. Verify the fetched CPython commit.
+1. A trusted controller accepts a GitHub branch, commit or PR head, one of the
+   recorded Tier 1 targets and a build mode. Resolve it and `python/cpython` main
+   once, then verify the fetched immutable CPython commits.
    Record configure/build flags, compiler, SDK/libc, dependencies, `sys.version`,
    `sysconfig`, SOABI, debug flags, pointer width, and GIL configuration. Check
    required standard-library extensions such as `_ssl`, `_sqlite3`, and `_ctypes`.

@@ -1,0 +1,89 @@
+name: Run selected downstream tests
+
+on:
+  workflow_call:
+    inputs:
+      side:
+        type: string
+        required: true
+      commit:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      mode:
+        type: string
+        required: true
+      projects:
+        type: string
+        required: true
+      max_parallel:
+        type: number
+        default: 8
+
+permissions:
+  contents: read
+
+jobs:
+  selection:
+    runs-on: ubuntu-26.04
+    outputs:
+      projects: ${{ steps.select.outputs.projects }}
+      has_projects: ${{ steps.select.outputs.has_projects }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.4'
+          python-version: '3.14'
+          enable-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: build-report-${{ inputs.side }}-${{ inputs.platform }}-${{ inputs.mode }}-*
+          path: reports
+      - id: select
+        env:
+          CPYTHON_COMMIT: ${{ inputs.commit }}
+          PLATFORM: ${{ inputs.platform }}
+          MODE: ${{ inputs.mode }}
+          PROJECTS: ${{ inputs.projects }}
+        shell: bash
+        run: |
+          uv run --locked --no-dev python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from snake_pit.comparison import schedule
+          projects = schedule(Path('reports'), Path('blocked'), os.environ['CPYTHON_COMMIT'], os.environ['PLATFORM'], os.environ['MODE'], json.loads(os.environ['PROJECTS']))
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
+              stream.write(f'projects={json.dumps(projects)}\nhas_projects={str(bool(projects)).lower()}\n')
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: outcome-${{ inputs.side }}-${{ inputs.platform }}-${{ inputs.mode }}-blocked
+          path: blocked/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  test:
+    needs: selection
+    if: needs.selection.outputs.has_projects == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ inputs.max_parallel }}
+      matrix:
+        project: ${{ fromJSON(needs.selection.outputs.projects) }}
+    uses: ./.github/workflows/project.yml
+    with:
+      side: ${{ inputs.side }}
+      commit: ${{ inputs.commit }}
+      platform: ${{ inputs.platform }}
+      runner: ${{ inputs.runner }}
+      mode: ${{ inputs.mode }}
+      project: ${{ matrix.project }}
+      operation: test

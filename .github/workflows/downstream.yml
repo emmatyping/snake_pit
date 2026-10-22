@@ -1,24 +1,28 @@
-name: CPython downstream tests
-run-name: CPython ${{ inputs.commit }} / ${{ inputs.mode }} downstream tests
+name: CPython downstream comparison
+run-name: CPython ${{ inputs.ref }} vs main / ${{ inputs.mode }}
 
 on:
   workflow_dispatch:
     inputs:
-      commit:
-        description: Full CPython commit SHA
+      ref:
+        description: CPython branch, commit, PR URL, or owner/repo:branch
         type: string
         required: true
       platforms:
         description: Space-separated PEP 11 Tier 1 target triples
         type: string
         required: true
+      projects:
+        description: Optional space-separated project names (blank runs the complete catalog)
+        type: string
+        default: ''
       mode:
         description: CPython build configuration
         type: choice
         options: [debug, release_assertions, release, debug-freethreading, release_assertions-freethreading, release-freethreading]
         default: debug
       max_parallel:
-        description: Maximum concurrent project tests per platform
+        description: Maximum concurrent package jobs per platform and side
         type: number
         default: 8
 
@@ -30,8 +34,11 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
-      builds: ${{ steps.matrix.outputs.builds }}
-      projects: ${{ steps.matrix.outputs.projects }}
+      builds: ${{ steps.plan.outputs.builds }}
+      projects: ${{ steps.plan.outputs.projects }}
+      baseline: ${{ steps.plan.outputs.baseline }}
+      target: ${{ steps.plan.outputs.target }}
+      revisions: ${{ steps.plan.outputs.revisions }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,24 +48,32 @@ jobs:
           version: '0.13.4'
           python-version: '3.14'
           enable-cache: false
-      - id: matrix
+      - id: plan
         env:
-          CPYTHON_COMMIT: ${{ inputs.commit }}
+          CPYTHON_REF: ${{ inputs.ref }}
           PLATFORMS: ${{ inputs.platforms }}
           MODE: ${{ inputs.mode }}
           MAX_PARALLEL: ${{ inputs.max_parallel }}
+          PROJECTS: ${{ inputs.projects }}
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           uv run --locked --no-dev python - <<'PY'
-          import os
+          import json, os
           from pathlib import Path
-          from snake_pit.actions import matrices, write_outputs
+          from snake_pit.comparison import make_plan, emit_plan
           maximum = float(os.environ['MAX_PARALLEL'])
           if not maximum.is_integer() or not 1 <= maximum <= 256:
               raise SystemExit('max_parallel must be an integer from 1 through 256')
-          value = matrices(os.environ['CPYTHON_COMMIT'], os.environ['PLATFORMS'].split(), os.environ['MODE'])
-          write_outputs(value, Path(os.environ['GITHUB_OUTPUT']))
+          value = make_plan(os.environ['CPYTHON_REF'], os.environ['PLATFORMS'].split(), os.environ['MODE'], os.environ['PROJECTS'].split() or None)
+          Path('comparison-plan.json').write_text(json.dumps(value, indent=2) + '\n')
+          emit_plan(value, Path(os.environ['GITHUB_OUTPUT']))
           PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: comparison-plan
+          path: comparison-plan.json
+          retention-days: 7
 
   platform:
     name: ${{ matrix.platform }}
@@ -68,10 +83,47 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.builds) }}
     uses: ./.github/workflows/platform.yml
     with:
-      commit: ${{ inputs.commit }}
+      baseline: ${{ needs.plan.outputs.baseline }}
+      target: ${{ needs.plan.outputs.target }}
+      revisions: ${{ needs.plan.outputs.revisions }}
       platform: ${{ matrix.platform }}
       runner: ${{ matrix.runner }}
       mode: ${{ inputs.mode }}
       projects: ${{ needs.plan.outputs.projects }}
-      # Normalize dispatch input types before the reusable workflow's number check.
       max_parallel: ${{ fromJSON(format('{0}', inputs.max_parallel)) }}
+
+  compare:
+    needs: [plan, platform]
+    if: always() && !cancelled() && needs.plan.result == 'success'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.4'
+          python-version: '3.14'
+          enable-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: comparison-plan
+          path: plan
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: outcome-*
+          path: artifacts/outcomes
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: interpreter-*
+          path: artifacts/interpreters
+      - name: Compare main and candidate
+        shell: bash
+        run: uv run --locked --no-dev python -m snake_pit.comparison report --plan plan/comparison-plan.json --artifacts artifacts --output comparison --summary "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: comparison
+          path: comparison/
+          if-no-files-found: warn
+          retention-days: 7

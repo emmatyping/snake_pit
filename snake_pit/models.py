@@ -124,3 +124,25 @@ class RunResult(TypedDict):
     phases: list[PhaseResult]
     failed_phase: NotRequired[str]
     skipped_phases: NotRequired[list[str]]
+
+
+class ProjectResult(TypedDict):
+    project: str
+    release: str
+    cpython_commit: str
+    platform: str
+    mode: str
+    status: str
+    started_at: str
+    phases: list[PhaseResult]
+    artifacts: dict[str, str]
+    failed_phase: NotRequired[str]
+    error: NotRequired[str]
+    project_commit: NotRequired[str]
+    test_selection: NotRequired[list[str]]
+    python_sha256: NotRequired[str]
+    recipe_sha256: NotRequired[str]
+
+    build_status: NotRequired[str]
+    dependencies: NotRequired[dict[str, str]]
+    blocked_by: NotRequired[list[str]]

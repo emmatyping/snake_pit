@@ -1,15 +1,20 @@
 # Snake Pit
 
-Test a specified CPython commit against popular PyPI projects. The 28 projects,
-their versions, source hashes, and test commands are configured in
-[data/recipes.toml](data/recipes.toml).
+Compare a CPython GitHub branch, commit or PR head against `python/cpython`'s
+`main` on the selected Tier 1 platforms. The 28 projects, versions, source hashes,
+and test commands live in [data/recipes.toml](data/recipes.toml).
 
-The GitHub Actions pipeline accepts a CPython commit and platform list, builds
-CPython once per platform, and runs a separate project test job for every pair.
+The workflow resolves both refs to immutable SHAs, builds both interpreters and
+prepares source wheels. It then skips projects whose locked dependencies have
+known build failures and runs the remaining suites in parallel. A dependency's
+test failures do not block its consumers. Matching source-built dependency wheels
+are reused, and candidate dependency versions are constrained by the baseline.
+
+The Actions summary shows new regressions, improvements, unchanged failures and
+newly blocked projects, with machine-readable results in `comparison.json`.
 The build mode defaults to `debug`; `release_assertions` and `release` are also
 available. Append `-freethreading` to any mode to disable the GIL.
-See [running in Actions](docs/actions.md) for inputs, artifacts, and limitations.
-The project-list CLI and prepared-worker executor are also available for local tooling.
+See [running in Actions](docs/actions.md) for reference forms, artifacts and limits.
 
 Requires Python 3.14+ for the control tools. Runtime code uses the standard library;
 mypy is a locked development dependency. The control Python and the CPython
@@ -21,11 +26,23 @@ uv sync --locked
 uv run --locked mypy
 uv run --locked python -m unittest discover -s tests -v
 uv run --locked python -m snake_pit list
-uv run --locked python -m snake_pit plan --commit "$CPYTHON_COMMIT" --platform "$TARGET_TRIPLE"
+uv run --locked python -m snake_pit plan --ref "$CPYTHON_REF" --platform "$TARGET_TRIPLE"
 ```
 
-`CPYTHON_COMMIT` must be a full lowercase Git SHA, and `TARGET_TRIPLE` must be
-provided explicitly. Neither has a default. The recorded Tier 1 set, checked
+`CPYTHON_REF` can be a branch or commit in `python/cpython`, a GitHub PR/commit/tree
+URL, or `owner/repo:branch` for a fork. `TARGET_TRIPLE` must be provided explicitly.
+A full SHA still works with `--commit` for a low-level single-interpreter plan.
+
+To dispatch a comparison:
+
+```sh
+gh workflow run downstream.yml -f ref="$CPYTHON_REF" \
+  -f platforms="$TARGET_TRIPLE" -f mode=release
+```
+
+The optional `projects` input narrows the selected catalog, for example
+`-f projects=packaging` for a small workflow smoke check. By default every recipe
+is selected. The recorded Tier 1 set, checked
 against [PEP 11](https://peps.python.org/pep-0011/#tier-1) on October 21, 2026, is:
 
 | Target | Toolchain |

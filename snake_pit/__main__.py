@@ -36,8 +36,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description='Plan and run downstream CPython tests')
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('list', help='Show projects and versions from recipes.toml')
-    planning = sub.add_parser('plan', help='Produce a qualification plan without executing package code')
-    planning.add_argument('--commit', required=True)
+    planning = sub.add_parser('plan', help='Resolve a GitHub ref and plan a comparison against CPython main')
+    reference = planning.add_mutually_exclusive_group(required=True)
+    reference.add_argument('--ref', help='Branch, commit, PR URL, or owner/repo:branch')
+    reference.add_argument('--commit', help='Produce a low-level single-commit plan instead')
     planning.add_argument('--platform', required=True, choices=tuple(load_platforms()['platforms']))
     planning.add_argument('--mode', choices=MODES, default=DEFAULT_MODE)
     worker = sub.add_parser('worker', help='Execute a prepared job inside an already isolated disposable worker')
@@ -49,7 +51,11 @@ def main() -> int:
             for p in load_projects():
                 print(f"{p['name']:16} {p['release']}")
         elif args.command == 'plan':
-            print(json.dumps(plan(args.commit, args.platform, args.mode), indent=2))
+            if args.ref is not None:
+                from .comparison import make_plan
+                print(json.dumps(make_plan(args.ref, [args.platform], args.mode), indent=2))
+            else:
+                print(json.dumps(plan(args.commit, args.platform, args.mode), indent=2))
         else:
             from .worker import run_job
             result = run_job(args.job, args.output)

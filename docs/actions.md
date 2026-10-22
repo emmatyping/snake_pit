@@ -1,180 +1,177 @@
-# Running builds and project tests in GitHub Actions
+# Comparative runs in GitHub Actions
 
-Run **CPython downstream tests** from the Actions tab, supplying:
-
-- `commit`: the full lowercase, 40-character CPython Git SHA.
-- `platforms`: a space-separated list of Tier 1 target triples from the README.
-- `mode`: `debug` (default), `release_assertions`, or `release`, each optionally
-  suffixed with `-freethreading` to disable the GIL.
-- `max_parallel`: concurrent project jobs per platform (default 8).
-
-For example, once this repository is pushed to GitHub:
+[downstream.yml](../.github/workflows/downstream.yml) compares a GitHub CPython
+reference with the current `main` of `python/cpython`. It records the resolved
+repository and full SHA for both sides before any interpreter build starts.
+A PR URL selects its **head commit**, including a fork's repository. It does not
+select GitHub's synthetic merge commit or the PR's merge base.
 
 ```sh
 gh workflow run downstream.yml \
-  -f commit="$CPYTHON_COMMIT" \
-  -f platforms='x86_64-unknown-linux-gnu aarch64-apple-darwin x86_64-pc-windows-msvc' \
-  -f mode=debug \
-  -f max_parallel=8
+  -f ref='https://github.com/python/cpython/pull/12345' \
+  -f platforms='aarch64-apple-darwin aarch64-unknown-linux-gnu i686-pc-windows-msvc x86_64-pc-windows-msvc x86_64-unknown-linux-gnu' \
+  -f mode=release
 ```
 
-The workflow validates inputs before building anything. Each platform calls the
-reusable `platform.yml` workflow, which has its own build followed by its project
-matrix. A fast platform can start its project tests while other platforms are
-still building. All five platforms produce five builds and 140 project jobs;
-uvloop's two Windows combinations report `not-applicable`. Each recipe produces
-one project job; transitive dependencies do not create additional jobs.
-
-```mermaid
-flowchart LR
-    Input[Commit + platform list] --> Plan[Validate and expand matrices]
-    Plan --> Linux[Build Linux CPython]
-    Plan --> Mac[Build macOS CPython]
-    Plan --> Windows[Build Windows CPython]
-    Linux --> LT[Linux × each project]
-    Mac --> MT[macOS × each project]
-    Windows --> WT[Windows × each project]
-```
-
-Both platform and project matrices use `fail-fast: false`. A failed interpreter
-build blocks that platform's project matrix; it does not cancel other platforms.
-A package failure does not cancel its siblings. Job timeouts provide an outer
-bound; individual subprocesses also have stage timeouts and bounded logs.
-
-## Interpreter builds
-
-The build commands follow CPython's
-[Ubuntu](https://github.com/python/cpython/blob/main/.github/workflows/reusable-ubuntu.yml),
-[macOS](https://github.com/python/cpython/blob/main/.github/workflows/reusable-macos.yml), and
-[Windows](https://github.com/python/cpython/blob/main/.github/workflows/reusable-windows.yml)
-CI procedures. Dependency scripts and Brewfiles come from the **requested commit**.
-Linux uses GCC, `configure`, and `make`; macOS uses the Brewfile, OpenSSL formula,
-`configure`, and GNU make; Windows uses `PCbuild/build.bat -e -v` with `Win32` or
-`x64`. Debug and free-threaded switches are explicit. Like current CPython CI,
-free-threaded Windows x86 is rejected. Debug builds also enable safety configure
-flags when the requested revision supports them.
-
-| Base mode | Build configuration |
+| Input | Meaning |
 | --- | --- |
-| `debug` (default) | Debug build with assertions (`--with-pydebug` or Windows `-d`) |
-| `release_assertions` | Release build with C assertions enabled, retaining the release ABI |
-| `release` | Release build with C assertions disabled |
+| `ref` | Required branch, commit, GitHub PR/commit/tree URL, or `owner/repo:branch`. A bare ref is in `python/cpython`. |
+| `platforms` | Required space-separated recorded Tier 1 target triples. |
+| `mode` | `debug` (default), `release_assertions`, or `release`, optionally suffixed with `-freethreading`. |
+| `projects` | Optional space-separated recipe names; blank selects the whole catalog. |
+| `max_parallel` | Maximum concurrent package jobs in each platform/side matrix, default 8. |
 
-Append `-freethreading` to any base mode for a free-threaded build, for example
-`debug-freethreading`. POSIX release builds explicitly disable `Py_DEBUG` and
-select [`--with-assertions` or `--without-assertions`](https://docs.python.org/3.14/using/configure.html#cmdoption-with-assertions).
-Windows release builds use `-c Release`; `release_assertions` overrides MSBuild's
-`_DebugPreprocessorDefinition` to remove `NDEBUG` while retaining release
-optimization and the release CRT. The build rejects an unrecognized upstream
-property definition rather than silently disabling assertions.
+For example, `-f ref=somebody/cpython:fix-encoding -f projects=packaging` selects a
+fork branch and a small project set. `gh workflow run --ref` selects the *harness*
+workflow branch; `-f ref=...` selects the CPython revision under test.
+Public GitHub refs are resolved through the GitHub API. The workflow gives the
+trusted planning step a read-only token; local planning can use `GITHUB_TOKEN`
+when needed. Ref strings are data, never interpolated into executable shell code.
 
-These builds adapt the upstream procedures; they do not run all of CPython's
-own CI checks, PGO/BOLT variants, or compiler-warning comparisons. Linux currently
-uses the runner distribution's OpenSSL rather than upstream CI's separately built
-OpenSSL. `test.pythoninfo` records the resulting configuration. Runner labels are
-explicit, but hosted image patch levels and OS package repositories can change;
-their versions are recorded rather than claimed to be hermetically pinned.
-
-POSIX builds run `make install` into `cpython/install` so extension builders such
-as Meson can discover installed headers and sysconfig paths. Windows uses the
-`PC/layout/main.py` with development headers, import libraries, and test helpers.
-Windows project jobs initialize Visual Studio for the target architecture before
-building extensions. Recipes can list Windows native dependencies in `windows`;
-they are built with vcpkg in a job-local static-library layout
-using the target build's dynamic CRT and debug/release configuration. This supplies Pillow's JPEG and zlib dependencies without
-requiring extra runtime DLL search paths.
-
-Each platform uploads `cpython-<target>-<mode>` containing the tarred build tree,
-`build.json`, and `pythoninfo.txt`. The archive preserves executable bits, headers,
-standard library/test helpers, generated configuration, and Windows DLLs. Project
-jobs restore it at the original workspace path so sysconfig's build paths remain
-usable, and verify the requested commit/platform/mode, archive hash, and interpreter
-hash before using it. There is no cross-commit interpreter cache or fallback to
-the control interpreter.
-
-## Project jobs
-
-[data/recipes.toml](../data/recipes.toml) specifies test selection, runner adapter,
-version, source URL/hash, repository, release tag/commit, and additional test/native
-dependencies for every selected project.
-Recipes are initial qualification attempts, not certified compatibility claims.
-Most use release-tagged upstream tests; the resolved commit is checked against the
-recipe pin. A recipe can instead use tests included in the hash-verified sdist.
-NumPy, pandas and greenlet use tests from the installed package, collected with
-pytest's default import mode on their installed paths. This also supports test
-directories without `__init__.py`. lxml uses its native `test.py --no-src` runner
-so its `test_suite()` factories and doctests run correctly, while imports use
-the installed extensions and pinned upstream test helpers. Django runs a
-named SQLite subset through its own runner. Other recipes use pytest with separate
-collection and execution phases, and JUnit output. Empty collection is a failure.
-Pytest execution stops after ten failures so incompatible suites produce useful
-diagnostics without running thousands of already-blocked cases. Upstream suites
-run from their checkout with the current directory excluded from Python's default
-import path; recipes can select `import_mode = "prepend"` when their test helpers
-require it. `test_env` overrides environment variables for collection and testing,
-after building and checking the package import. Pytest's recipe clears the harness's
-forced `PYTHONFAULTHANDLER` setting because its own tests exercise both startup states.
-`pytest_args` adds recipe-specific options. Pytest's own suite uses `-W default`
-to report warnings without promoting them to errors.
-
-The job reads the selected version and sdist digest from [data/recipes.toml](../data/recipes.toml),
-downloads that exact sdist and verifies its digest, creates a
-venv using the restored target interpreter, adds its executable directory to
-`PATH` for build/test tools, seeds setuptools and wheel from
-`pylock.tools.toml`, installs build backends from `pylock.backends.toml`, then
-locks declared build requirements to
-`pylock.build.toml`, and installs that build environment. It builds the package's
-wheel from source with implicit build isolation disabled. It then locks that exact
-local wheel plus runtime/test dependencies and the retained build tools into
-`pylock.toml` and installs from it. Recipes may add `build_dependencies` for native
-transitive dependencies that must build without implicit isolation.
-Runtime and test dependencies are resolved for the target interpreter.
-The build wheel is retained alongside the lock. Rust projects with a root
-`Cargo.lock` have a locked fetch phase followed by offline Cargo builds.
-
-Build and test dependency declarations, dynamic PEP 517 requirements, nested Cargo
-workspaces, native transitive dependencies, optional test fixtures, and upstream
-test layouts may need recipe changes. Common build backends are installed from a seed lock before source-only build
-dependencies are compiled. Missing build requirements produce a failed
-stage rather than an implicit unpinned build environment. No automatic ABI3
-workaround or pure Python fallback replaces a failed native build. The root
-project is always built from source; compatible wheels are permitted for dependencies.
-
-Every completed project invocation uploads `results-<target>-<mode>-<project>` with
-`result.json`, stage logs, generated lockfiles, the built wheel when available,
-source/recipe/interpreter hashes, the exact selected tests, and JUnit results where
-supported. Review collection errors, skips and xfails when qualifying a recipe;
-an exit code alone does not certify meaningful coverage.
-
-Build, runtime and test dependencies are freshly resolved in each qualification
-run. The resulting locks make that run's chosen Python artifacts auditable, but
-separate dispatches can choose different dependency versions. For regression
-comparisons, retain/reuse those locks; baseline comparison and replay orchestration
-remain future work.
-
-## Execution environment and checks
-
-Downstream builds, metadata hooks and tests run only on manually dispatched,
-fresh GitHub-hosted VMs. Checkouts do not persist Git credentials, permissions are
-read-only, application secrets are not passed, candidate subprocess environments
-are restricted, and caches are not shared between jobs. GitHub-hosted VMs allow
-outbound networking; these workflows do not implement the design's stronger
-offline/egress-denied execution boundary or OS-level resource quotas. Locking
-does not sandbox third-party code. Use stronger isolated infrastructure when that
-threat model is required; the prepared-worker interface remains available.
-
-The separate **Code checks** workflow runs strict mypy and the repository's tests
-under Python 3.14 on Linux, macOS and Windows for pushes and pull requests. It does
-not execute third-party project suites on pull requests. To verify locally:
+Local planning and report generation are also available:
 
 ```sh
-uv sync --locked
-uv run --locked mypy
-uv run --locked python -m unittest discover -s tests -v
-uv run --locked python -m snake_pit.actions matrix \
-  --commit "$CPYTHON_COMMIT" --platform "$TARGET_TRIPLE"
+uv run --locked python -m snake_pit plan --ref "$CPYTHON_REF" --platform "$TARGET_TRIPLE"
+uv run --locked python -m snake_pit.comparison plan --ref "$CPYTHON_REF" \
+  --platform "$TARGET_TRIPLE" --project packaging --output comparison-plan.json
+uv run --locked python -m snake_pit.comparison report \
+  --plan comparison-plan.json --artifacts downloaded-outcomes --output comparison
 ```
 
-Native build and downstream qualification results depend on the chosen commit,
-platform and recipe versions. Inspect uploaded results for each pair; workflow
-syntax and local harness tests alone do not establish downstream compatibility.
+## Work scheduling and dependency builds
+
+Each platform has a pair of interpreter builds and separate package preparation
+and test jobs. Different platforms proceed independently. Reusable workflows and
+matrices implement the fan-out; see [GitHub's workflow reuse documentation](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
+
+```mermaid
+flowchart TD
+    R[Resolve main and target to SHAs] --> B[Build both CPython interpreters]
+    B --> P[Prepare baseline source wheels and dependency locks]
+    P --> M[Select and run baseline tests]
+    P --> Q[Prepare target with baseline version constraints]
+    Q --> T[Select and run target tests]
+    M --> D[Compare outcomes and JUnit cases]
+    T --> D
+```
+
+Preparation builds each selected recipe's source wheel and resolves its build
+and runtime/test locks without running the test suite. The scheduler examines
+those exact locked package names and versions, including transitive dependencies.
+If `bar` has a known build failure and `foo` needs that version of `bar`, the
+scheduler records `foo` as `blocked`, with `bar==version` as evidence, and creates
+no installation/test job for `foo`.
+
+Build availability is separate from a project's overall outcome. A built `bar`
+remains usable by `foo` if `bar` has failing tests, collection errors, or even an
+unresolvable optional test dependency. Test-dependency cycles such as pytest and
+requests do not become build-scheduling cycles. Missing reports and infrastructure
+failures are not treated as proven dependency build failures.
+
+Successful prepared wheels are transferred as artifacts with hashes. Consumers
+verify the interpreter, platform, mode, recipe revision, wheel digest, and package
+metadata. A matching locked catalog dependency is installed from its freshly built
+wheel rather than compiled again. A different locked version is neither blocked
+nor replaced by a catalog provider's result.
+
+These optimizations apply to the selected catalog providers. Non-catalog packages
+still use each recipe's locked dependency installation. Initial source probes may
+also compile build-backend dependencies before all provider wheels are available;
+the scheduler prunes the later installation/test fan-out after the locks are known.
+Selecting a project subset also narrows the providers whose builds are probed.
+
+## Comparable dependency inputs
+
+Baseline preparation records `pylock.tools.toml`, `pylock.backends.toml`,
+`pylock.build.toml` and `pylock.toml`. Target preparation converts each available
+baseline lock into exact version constraints for that phase. Tests retain their
+own prepared versions and substitute verified wheels from their own interpreter's
+builds. Wheel hashes can differ between main and target; package versions and
+source recipe hashes are the comparison inputs.
+
+This uses uv's documented [constraint and lock workflow](https://docs.astral.sh/uv/pip/compile/).
+If the target cannot resolve the baseline versions, that failure remains visible;
+constraints are not silently relaxed to make the target pass. A baseline failure
+may prevent a later-phase lock from existing. The candidate can still progress
+using the locks that are available, and the report preserves dependency differences.
+A changed result with conflicting resolved versions is marked inconclusive.
+
+When the ref resolves to exactly main's SHA, only one side is built and tested.
+The report reuses those observations for both logical sides.
+
+## Reading the comparison
+
+The final `compare` job always runs after platform work, unless the workflow was
+cancelled or planning failed. Its job summary emphasizes differences and collapses
+unchanged results. The `comparison` artifact contains Markdown and JSON reports.
+
+- **Regression:** main passes but target fails, a previously passing test fails,
+  or a previously available package build becomes unavailable.
+- **Improved:** a failing outcome or test becomes passing, or a build progresses.
+- **Unchanged failure:** a failure already observed on main; this alone does not
+  fail the comparative check.
+- **Newly blocked:** a consumer cannot run because a required package build is
+  unavailable. These rows retain blocker identities rather than pretending the
+  consumer's own tests failed.
+- **Newly observed failure:** a test fails without a recorded baseline pass, for
+  example because the baseline stopped after ten failures. It is not labeled a
+  demonstrated new test regression.
+- **Coverage change:** previously passing cases become skipped or absent.
+- **Inconclusive:** missing/truncated reports, infrastructure errors, timeouts,
+  incompatible dependency versions, or incomplete interpreter preparation.
+
+New regressions or newly blocked projects make the comparison job fail. Missing
+or incomparable evidence also produces a non-success check. Existing package
+failures are recorded as data rather than making every package job red. The JSON
+retains the exact failing IDs, fixes, newly observed cases, and dependency changes.
+
+JUnit suites are compared by class/name test ID. The report only calls an
+individual failure new when that test actually passed on main. Non-JUnit adapters
+currently compare the overall phase/outcome; their detailed native runner output
+remains in logs. A difference is an investigation lead, not proof that CPython is
+at fault. Rerun flaky cases and minimize failures before attributing them.
+
+## Builds, recipes and artifacts
+
+All five recorded Tier 1 targets are available. The workflow uses `ubuntu-26.04`,
+`ubuntu-26.04-arm`, `macos-26` and `windows-2025`. Windows x86 uses a 32-bit build and
+matching tools. CPython's own CI excludes free-threaded Windows x86, so the planner
+rejects that combination. The repository's `actionlint.yaml` supplies the newer
+Ubuntu labels missing from actionlint 1.7.12's embedded runner list.
+
+Interpreter builds use the requested revision's POSIX dependency script/Brewfile
+or Windows `PCbuild/build.bat`. POSIX runs `make install`; Windows uses
+`PC/layout/main.py` to retain development headers, import libraries and standard
+library tests. Archives restore at the original absolute path for sysconfig.
+`release_assertions` uses release optimization with assertions enabled; on Windows
+it removes the MSBuild NDEBUG definition without switching to the debug CRT.
+
+[data/recipes.toml](../data/recipes.toml) pins package versions, source URLs/hashes,
+upstream test commits, test selections and native dependencies. Test jobs verify
+source hashes and Git test-source identities. NumPy, pandas and greenlet use
+installed test paths; lxml uses its native suite factories; Django uses its named
+SQLite subset. Empty collection fails, and pytest stops after ten failures.
+`import_mode`, `pytest_args` and `test_env` allow explicit upstream runner settings.
+`test_env` takes effect after building and checking the package import. Pytest's
+recipe reports warnings normally and clears forced faulthandler startup because
+its own suite tests both enabled and disabled states.
+
+Artifact names include side, platform, mode and project as appropriate:
+
+| Prefix | Contents |
+| --- | --- |
+| `comparison-plan` | Resolved refs, selected projects/platforms and recipe hash. |
+| `interpreter-*` | One interpreter build outcome. |
+| `cpython-*` | Installed interpreter build, headers, provenance and pythoninfo. |
+| `build-report-*` | Package source-build outcome and generated locks. |
+| `prepared-*` | Source-built wheel, digest and locks for verified reuse. |
+| `outcome-*` | Test/JUnit outcomes, or explicit blocked/preparation outcomes. |
+| `logs-*` | Detailed per-phase logs, locks, selected tests and wheel hashes. |
+| `comparison` | The final JSON and Markdown difference report. |
+
+Hosted workers are disposable native jobs. Credentials are not persisted in
+checkouts, and package subprocesses receive a restricted environment. These jobs
+still resolve/download dependencies and do not enforce offline network isolation.
+PEP 751 locks cover Python artifacts, not Cargo or native OS libraries. Runtime
+locks do not yet capture every dynamic build hook's complete dependency closure.
+See [the fuller qualification design](design.md) for those remaining boundaries.

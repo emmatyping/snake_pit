@@ -1,9 +1,15 @@
-name: Build CPython and test one platform
+name: Compare CPython revisions on one platform
 
 on:
   workflow_call:
     inputs:
-      commit:
+      baseline:
+        type: string
+        required: true
+      target:
+        type: string
+        required: true
+      revisions:
         type: string
         required: true
       platform:
@@ -30,17 +36,21 @@ env:
 
 jobs:
   build:
-    name: Build CPython / ${{ inputs.platform }} / ${{ inputs.mode }}
+    name: Build ${{ matrix.revision.side }} CPython
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        revision: ${{ fromJSON(inputs.revisions) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: python/cpython
-          ref: ${{ inputs.commit }}
+          repository: ${{ matrix.revision.repository }}
+          ref: ${{ matrix.revision.commit }}
           path: cpython
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -48,31 +58,60 @@ jobs:
           version: '0.13.4'
           python-version: '3.14'
           enable-cache: false
-      - name: Build requested CPython commit
+      - name: Build resolved CPython commit
+        id: compile
+        continue-on-error: true
         env:
-          CPYTHON_COMMIT: ${{ inputs.commit }}
+          CPYTHON_COMMIT: ${{ matrix.revision.commit }}
           PLATFORM: ${{ inputs.platform }}
           MODE: ${{ inputs.mode }}
         shell: bash
         run: uv run --locked --no-dev python -m snake_pit.actions build --commit "$CPYTHON_COMMIT" --platform "$PLATFORM" --mode "$MODE"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Record interpreter outcome
+        if: always()
+        env:
+          CPYTHON_COMMIT: ${{ matrix.revision.commit }}
+          PLATFORM: ${{ inputs.platform }}
+          MODE: ${{ inputs.mode }}
+          BUILD_OUTCOME: ${{ steps.compile.outcome }}
+        shell: bash
+        run: |
+          uv run --locked --no-dev python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from snake_pit.comparison import placeholder
+          result = placeholder('CPython', '', os.environ['CPYTHON_COMMIT'], os.environ['PLATFORM'], os.environ['MODE'], 'interpreter build did not complete')
+          if os.environ['BUILD_OUTCOME'] in ('success', 'failure'):
+              result['status'] = 'passed' if os.environ['BUILD_OUTCOME'] == 'success' else 'failed'
+              result['build_status'] = result['status']
+              result['failed_phase'] = 'interpreter-build'
+              result.pop('error', None)
+          output = Path('interpreter-report')
+          output.mkdir(exist_ok=True)
+          (output / 'interpreter.json').write_text(json.dumps(result, indent=2) + '\n')
+          PY
+      - if: steps.compile.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: cpython-${{ inputs.platform }}-${{ inputs.mode }}
+          name: cpython-${{ matrix.revision.side }}-${{ inputs.platform }}-${{ inputs.mode }}
           path: cpython-artifact/
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: interpreter-${{ matrix.revision.side }}-${{ inputs.platform }}-${{ inputs.mode }}
+          path: interpreter-report/
+          if-no-files-found: warn
+          retention-days: 7
 
-  test:
-    name: ${{ inputs.platform }} / ${{ inputs.mode }} / ${{ matrix.project }}
+  build_state:
     needs: build
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      max-parallel: ${{ inputs.max_parallel }}
-      matrix:
-        project: ${{ fromJSON(inputs.projects) }}
+    if: always() && !cancelled()
+    runs-on: ubuntu-26.04
+    outputs:
+      ready: ${{ steps.state.outputs.ready }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -84,20 +123,80 @@ jobs:
           enable-cache: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: cpython-${{ inputs.platform }}-${{ inputs.mode }}
-          path: cpython-artifact
-      - name: Build and test project with restored CPython
+          pattern: interpreter-*-${{ inputs.platform }}-${{ inputs.mode }}
+          path: interpreters
+      - id: state
         env:
-          CPYTHON_COMMIT: ${{ inputs.commit }}
-          PLATFORM: ${{ inputs.platform }}
-          MODE: ${{ inputs.mode }}
-          PROJECT: ${{ matrix.project }}
+          REVISIONS: ${{ inputs.revisions }}
         shell: bash
-        run: uv run --locked --no-dev python -m snake_pit.project --commit "$CPYTHON_COMMIT" --platform "$PLATFORM" --mode "$MODE" --project "$PROJECT"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: results-${{ inputs.platform }}-${{ inputs.mode }}-${{ matrix.project }}
-          path: results/
-          if-no-files-found: warn
-          retention-days: 14
+        run: |
+          uv run --locked --no-dev python - <<'PY'
+          import json, os
+          from pathlib import Path
+          reports = [json.loads(p.read_text()) for p in Path('interpreters').rglob('interpreter.json')]
+          ready = all(any(r['cpython_commit'] == revision['commit'] and r['status'] == 'passed' for r in reports) for revision in json.loads(os.environ['REVISIONS']))
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
+              stream.write(f'ready={str(ready).lower()}\n')
+          PY
+
+  baseline_packages:
+    needs: build_state
+    if: needs.build_state.outputs.ready == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ inputs.max_parallel }}
+      matrix:
+        project: ${{ fromJSON(inputs.projects) }}
+    uses: ./.github/workflows/project.yml
+    with:
+      side: baseline
+      commit: ${{ fromJSON(inputs.baseline).commit }}
+      platform: ${{ inputs.platform }}
+      runner: ${{ inputs.runner }}
+      mode: ${{ inputs.mode }}
+      project: ${{ matrix.project }}
+      operation: build
+
+  target_packages:
+    needs: [build_state, baseline_packages]
+    if: always() && !cancelled() && needs.build_state.outputs.ready == 'true' && fromJSON(inputs.baseline).commit != fromJSON(inputs.target).commit
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ inputs.max_parallel }}
+      matrix:
+        project: ${{ fromJSON(inputs.projects) }}
+    uses: ./.github/workflows/project.yml
+    with:
+      side: target
+      commit: ${{ fromJSON(inputs.target).commit }}
+      platform: ${{ inputs.platform }}
+      runner: ${{ inputs.runner }}
+      mode: ${{ inputs.mode }}
+      project: ${{ matrix.project }}
+      operation: build
+
+  baseline_tests:
+    needs: [build_state, baseline_packages]
+    if: always() && !cancelled() && needs.build_state.outputs.ready == 'true'
+    uses: ./.github/workflows/tests.yml
+    with:
+      side: baseline
+      commit: ${{ fromJSON(inputs.baseline).commit }}
+      platform: ${{ inputs.platform }}
+      runner: ${{ inputs.runner }}
+      mode: ${{ inputs.mode }}
+      max_parallel: ${{ inputs.max_parallel }}
+      projects: ${{ inputs.projects }}
+
+  target_tests:
+    needs: [build_state, target_packages]
+    if: always() && !cancelled() && needs.build_state.outputs.ready == 'true' && fromJSON(inputs.baseline).commit != fromJSON(inputs.target).commit
+    uses: ./.github/workflows/tests.yml
+    with:
+      side: target
+      commit: ${{ fromJSON(inputs.target).commit }}
+      platform: ${{ inputs.platform }}
+      runner: ${{ inputs.runner }}
+      mode: ${{ inputs.mode }}
+      max_parallel: ${{ inputs.max_parallel }}
+      projects: ${{ inputs.projects }}
