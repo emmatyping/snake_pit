@@ -11,7 +11,7 @@ from unittest.mock import patch
 import zipfile
 
 from snake_pit.artifacts import verified_wheel, wheel_requirements
-from snake_pit.comparison import ComparisonPlan, TestOutcome, difference, emit_plan, make_plan, markdown, placeholder, report, schedule
+from snake_pit.comparison import ComparisonPlan, TestOutcome, difference, emit_plan, junit, make_plan, markdown, placeholder, report, schedule
 from snake_pit.dependencies import RECIPES, load_recipes
 from snake_pit.models import Phase, PhaseResult, ProjectResult
 from snake_pit.project import run_project
@@ -170,6 +170,29 @@ class SchedulingTests(unittest.TestCase):
                                   platform, 'debug', ['uvloop']), [])
         skipped = json.loads((self.root / 'blocked/uvloop/result.json').read_text())
         self.assertEqual(skipped['status'], 'not-applicable')
+
+
+class JUnitTests(unittest.TestCase):
+    def test_duplicate_records_preserve_failures_regardless_of_order(self) -> None:
+        cases = ['<testcase classname="suite" name="case"/>',
+                 '<testcase classname="suite" name="case"><failure message="call failed"/></testcase>',
+                 '<testcase classname="suite" name="case"><error message="teardown failed"/></testcase>']
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'tests.xml'
+            for records in (cases, cases[::-1]):
+                path.write_text('<testsuite>' + ''.join(records) + '</testsuite>')
+                self.assertEqual(junit(path), {'suite::case': {'outcome': 'failed',
+                                                             'message': 'call failed\nteardown failed'}})
+
+    def test_repeated_passes_and_skips_are_compared_conservatively(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'tests.xml'
+            path.write_text('<testsuite><testcase classname="suite" name="case"/>'
+                            '<testcase classname="suite" name="case"/></testsuite>')
+            self.assertEqual(junit(path)['suite::case']['outcome'], 'passed')
+            path.write_text('<testsuite><testcase classname="suite" name="case"><skipped/></testcase>'
+                            '<testcase classname="suite" name="case"/></testsuite>')
+            self.assertEqual(junit(path)['suite::case']['outcome'], 'skipped')
 
 
 class DifferenceTests(unittest.TestCase):

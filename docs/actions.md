@@ -125,7 +125,11 @@ or incomparable evidence also produces a non-success check. Existing package
 failures are recorded as data rather than making every package job red. The JSON
 retains the exact failing IDs, fixes, newly observed cases, and dependency changes.
 
-JUnit suites are compared by class/name test ID. The report only calls an
+JUnit suites are compared by class/name test ID. Repeated IDs (including separate
+pytest call and teardown records) form one comparison group: every record must
+pass for the group to pass, and all failure messages are retained in sorted order.
+Collectors that reuse IDs therefore provide group-level evidence rather than
+separate identities for each occurrence. The report only calls an
 individual failure new when that test actually passed on main. Non-JUnit adapters
 currently compare the overall phase/outcome; their detailed native runner output
 remains in logs. A difference is an investigation lead, not proof that CPython is

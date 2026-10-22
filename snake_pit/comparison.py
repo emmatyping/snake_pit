@@ -125,18 +125,22 @@ def junit(path: Path) -> dict[str, TestOutcome]:
     outcomes: dict[str, TestOutcome] = {}
     if not path.exists():
         return outcomes
+    messages: dict[str, set[str]] = {}
+    severity = {'passed': 0, 'skipped': 1, 'failed': 2}
     for case in ET.parse(path).iter('testcase'):
         key = f'{case.get("classname", "")}::{case.get("name", "")}'
         # Paths vary between runner operating systems and working directories;
         # class/name IDs remain stable within a paired platform run.
-        failure = case.find('failure')
-        if failure is None:
-            failure = case.find('error')
-        outcome = 'failed' if failure is not None else 'skipped' if case.find('skipped') is not None else 'passed'
-        message = '' if failure is None else failure.get('message', '')
-        if key in outcomes:
-            raise ValueError(f'duplicate JUnit test ID: {key}')
-        outcomes[key] = dict(outcome=outcome, message=message)
+        failures = [*case.findall('failure'), *case.findall('error')]
+        outcome = 'failed' if failures else 'skipped' if case.find('skipped') is not None else 'passed'
+        # Pytest can emit separate call and teardown records for the same ID.
+        # Some custom collectors also reuse IDs. Compare the group conservatively:
+        # every record must pass to call it passing, and retain every failure.
+        previous = outcomes.get(key)
+        if previous is not None and severity[previous['outcome']] > severity[outcome]:
+            outcome = previous['outcome']
+        messages.setdefault(key, set()).update(failure.get('message', '') for failure in failures)
+        outcomes[key] = dict(outcome=outcome, message='\n'.join(sorted(messages[key])))
     return outcomes
 
 
@@ -359,9 +363,13 @@ def main() -> int:
         with args.summary.open('a') as stream:
             stream.write(rendered)
     counts = cast(dict[str, int], result['counts'])
+    print('Comparison results: ' + ', '.join(f'{count} {change}' for change, count in sorted(counts.items())))
     if counts.get('regression') or counts.get('newly-blocked'):
+        print('Comparison failed: regressions or newly blocked projects were observed.')
         return 1
     if not result['complete'] or any(counts.get(c) for c in ('inconclusive', 'coverage-change', 'newly-observed-failure')):
+        print('Comparison incomplete: interpreter preparation, missing evidence, coverage changes, '
+              'or failures without a baseline pass need review. See comparison.md for details.')
         return 2
     return 0
 
