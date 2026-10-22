@@ -204,7 +204,7 @@ class ActionsTests(unittest.TestCase):
 
     def test_project_records_collection_failure_without_running_tests(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             output = root / 'results'
             work = root / 'work'
             sdist_root = root / 'fixture-1.0'

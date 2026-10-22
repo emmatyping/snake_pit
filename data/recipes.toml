@@ -231,6 +231,7 @@ linux = ["libyaml-dev"]
 macos = ["libyaml"]
 
 [pandas]
+# dateutil 3 changed timezone internals used by this pandas release.
 build_dependencies = ["meson-python", "Cython", "ninja"]
 version = "3.0.6"
 sdist_url = "https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz"
@@ -241,7 +242,7 @@ tag = "v{version}"
 module = "pandas"
 tests = "tests/arrays"
 installed = true
-dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil", "pytz", "tzdata"]
+dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil<3", "pytz", "tzdata"]
 
 [pillow]
 windows = ["libjpeg-turbo", "zlib"]
