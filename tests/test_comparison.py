@@ -160,6 +160,17 @@ class SchedulingTests(unittest.TestCase):
         missing = json.loads((self.root / 'blocked/cffi/result.json').read_text())
         self.assertEqual(missing['status'], 'infrastructure-error')
 
+    def test_platform_exclusion_keeps_provenance_and_is_not_scheduled(self) -> None:
+        platform = 'x86_64-pc-windows-msvc'
+        value = run_project('uvloop', 'a' * 40, platform, 'debug', self.root / 'artifact',
+                            self.root / 'work', self.root / 'reports/uvloop', build_only=True)
+        self.assertEqual(value['status'], 'not-applicable')
+        self.assertEqual(value['recipe_sha256'], RECIPE_HASH)
+        self.assertEqual(schedule(self.root / 'reports', self.root / 'blocked', 'a' * 40,
+                                  platform, 'debug', ['uvloop']), [])
+        skipped = json.loads((self.root / 'blocked/uvloop/result.json').read_text())
+        self.assertEqual(skipped['status'], 'not-applicable')
+
 
 class DifferenceTests(unittest.TestCase):
     def test_new_failures_are_detected_even_when_both_suites_fail(self) -> None:

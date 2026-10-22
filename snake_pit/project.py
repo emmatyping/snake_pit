@@ -97,7 +97,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
     result: ProjectResult = dict(project=project_name, release=selected['release'], cpython_commit=commit,
                                  platform=platform, mode=mode, status='running',
                                  started_at=datetime.now(timezone.utc).isoformat(), phases=[], artifacts={},
-                                 build_status='not-run')
+                                 build_status='not-run', recipe_sha256=sha256(ROOT / 'data/recipes.toml'))
 
     def save() -> None:
         result['dependencies'] = locked_versions(output / 'pylock.toml')
@@ -138,7 +138,6 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         return result
     try:
         recipe = load_recipes()[project_name]
-        result['recipe_sha256'] = sha256(ROOT / 'data/recipes.toml')
         current_stage = 'prepared-artifact'
         prepared = read_results(prepared_root, commit, platform, mode) if prepared_root is not None else {}
         own_prepared = prepared.get(project_name)
