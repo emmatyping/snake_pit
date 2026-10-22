@@ -101,8 +101,10 @@ def run_phase(phase: Phase, root: Path, output: Path, env: dict[str, str]) -> Ph
 
     def drain() -> None:
         tail = bytearray()
-        with pipe, log.open('wb') as stream:
-            while chunk := pipe.read(65536):
+        with pipe, log.open('wb', buffering=0) as stream:
+            # read() can wait for a full buffer when an escaped descendant keeps
+            # the pipe open. Preserve diagnostics as soon as bytes arrive.
+            while chunk := os.read(pipe.fileno(), 65536):
                 before = counts['log_bytes']
                 counts['log_bytes'] += len(chunk)
                 stream.write(chunk[:max(0, LOG_LIMIT - before)])

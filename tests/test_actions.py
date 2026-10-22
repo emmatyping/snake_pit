@@ -34,6 +34,8 @@ class ActionsTests(unittest.TestCase):
             installed = root / 'installed/lxml'
             installed.mkdir(parents=True)
             (installed / '__init__.py').write_text('backend = "installed"\n')
+            (installed / 'html').mkdir()
+            (installed / 'html/__init__.py').write_text('backend = "installed"\n')
             checkout = root / 'upstream'
             source = checkout / 'src/lxml'
             helpers = source / 'tests'
@@ -41,9 +43,12 @@ class ActionsTests(unittest.TestCase):
             (source / '__init__.py').write_text('raise AssertionError("source package shadowed wheel")\n')
             (helpers / '__init__.py').write_text('')
             (helpers / 'fixture.py').write_text('from pathlib import Path\nlocation = Path(__file__)\n')
+            (source / 'html/tests').mkdir(parents=True)
+            (source / 'html/tests/__init__.py').write_text('')
             (checkout / 'test.py').write_text(
-                'import lxml, sys\nfrom pathlib import Path\nfrom lxml.tests import fixture\n'
+                'import lxml, lxml.html, lxml.html.tests, sys\nfrom pathlib import Path\nfrom lxml.tests import fixture\n'
                 'assert lxml.backend == "installed"\n'
+                'assert lxml.html.backend == "installed"\n'
                 'assert fixture.location.is_relative_to(Path(__file__).parent)\n'
                 'assert sys.argv[1:] == ["--no-src", "--list-tests"]\n'
                 'print("lxml.tests.fixture.test")\n')

@@ -4,6 +4,8 @@
 # against the commit pins below; runs verify their identity again before tests.
 
 [urllib3]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "2.8.0"
 sdist_url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz"
 sdist_sha256 = "63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63"
@@ -15,6 +17,8 @@ tests = "test"
 dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "trustme", "PySocks", "python-dateutil"]
 
 [httpx]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "0.28.1"
 sdist_url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz"
 sdist_sha256 = "75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"
@@ -26,6 +30,8 @@ tests = "tests"
 dependencies = ["pytest", "pytest-asyncio", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard"]
 
 [anyio]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "4.15.1"
 sdist_url = "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc37b1db102b386ba719b66e95b0f0d751f556b387e6d2/anyio-4.15.1.tar.gz"
 sdist_sha256 = "9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94"
@@ -122,6 +128,8 @@ tests = "tests"
 dependencies = ["pytest", "pytest-mock", "hypothesis", "dirty-equals", "inline-snapshot", "pytest-timeout", "pytest-benchmark", "pytest-examples", "pytest-run-parallel", "typing-inspection", "pydantic"]
 
 [requests]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "2.34.2"
 sdist_url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz"
 sdist_sha256 = "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
@@ -133,6 +141,8 @@ tests = "tests"
 dependencies = ["pytest", "pytest-httpbin", "trustme", "PySocks", "pytest-mock"]
 
 [trio]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "0.34.0"
 sdist_url = "https://files.pythonhosted.org/packages/92/dc/a2d25ed73ad49cfd79bf18d262577c3731c98e382284e28d522f49a0df35/trio-0.34.0.tar.gz"
 sdist_sha256 = "63b9485408bdfdde544fced107045a8c0086cdc4bd0ef2f797b9e0dd111b964b"
@@ -274,7 +284,7 @@ tests = "test"
 dependencies = ["pytest"]
 
 [psutil]
-pytest_args = ["-p", "junitxml"]
+pytest_args = ["-o", "addopts="]
 version = "7.2.2"
 sdist_url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz"
 sdist_sha256 = "0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"
@@ -310,6 +320,8 @@ installed = true
 dependencies = ["pytest", "psutil", "objgraph"]
 
 [uvloop]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "0.23.0"
 sdist_url = "https://files.pythonhosted.org/packages/fa/42/02c739ce85fb2ee8d99212c61417da8140c6b87e9d97c430bea520d76044/uvloop-0.23.0.tar.gz"
 sdist_sha256 = "28d160f51ab4da3b187063652e643dea6831072add4adc1e6d62afbe73b6be27"
@@ -332,6 +344,8 @@ tests = "tests/test_api.py"
 dependencies = ["pytest", "pytest-xdist", "hypothesis", "flaky", "unittest-mixins"]
 
 [pip]
+# cryptography may need a source build on development interpreters.
+build_dependencies = ["maturin"]
 version = "26.2.2"
 sdist_url = "https://files.pythonhosted.org/packages/fa/e8/0842d757e483e895e670f655084cfe8b8c72580c6769a76b30b2789a0608/pip-26.2.2.tar.gz"
 sdist_sha256 = "3a8e5c800492787f33a4114ef54444546c340df428974ebba17e0fd47e11af2f"

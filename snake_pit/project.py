@@ -94,7 +94,8 @@ def windows_compiler_environment(platform: str, work: Path, env: dict[str, str])
 
 
 def lxml_command(python: Path, checkout: Path) -> list[str]:
-    wrapper = ('import lxml, runpy, sys; lxml.__path__.append(sys.argv[1]); '
+    wrapper = ('import lxml, lxml.html, pathlib, runpy, sys; lxml.__path__.append(sys.argv[1]); '
+               'lxml.html.__path__.append(str(pathlib.Path(sys.argv[1]) / "html")); '
                'runner = sys.argv[2]; sys.argv = sys.argv[2:]; '
                'runpy.run_path(runner, run_name="__main__")')
     return [str(python), '-P', '-c', wrapper, str(checkout / 'src/lxml'),
@@ -158,6 +159,10 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         if 'windows' in platform:
             current_stage = 'compiler-environment'
             windows_compiler_environment(platform, work, env)
+            if recipe.get('adapter') == 'lxml':
+                # Use upstream's architecture-aware Windows dependency bundle,
+                # including matching static XML/XSLT/iconv/zlib libraries.
+                env['STATIC_DEPS'] = 'true'
         if 'linux' in platform and recipe.get('linux'):
             stage('native-dependencies', ['sudo', 'apt-get', 'install', '-y', *recipe['linux']])
         elif 'apple' in platform and recipe.get('macos'):
@@ -180,6 +185,15 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             prefix = native / triplet
             env['INCLUDE'] = str(prefix / 'include') + ';' + env.get('INCLUDE', '')
             libraries = prefix / ('debug/lib' if build_type == 'debug' else 'lib')
+            # Pillow searches these conventional names; vcpkg's static builds
+            # use zs/zsd and jpeg-static instead. Keep the originals for CMake.
+            for alias, candidates in {'zlib.lib': ('zs.lib', 'zsd.lib', 'zlibstatic.lib', 'zlibstaticd.lib'),
+                                      'jpeg.lib': ('jpeg-static.lib',)}.items():
+                if not (libraries / alias).exists():
+                    for candidate in candidates:
+                        if (libraries / candidate).exists():
+                            shutil.copyfile(libraries / candidate, libraries / alias)
+                            break
             env['LIB'] = str(libraries) + ';' + env.get('LIB', '')
         if platform == 'i686-pc-windows-msvc':
             stage('rust-target', ['rustup', 'target', 'add', 'i686-pc-windows-msvc'])
@@ -211,7 +225,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             tag = recipe['tag'].format(version=selected['release'],
                                        version_underscores=selected['release'].replace('.', '_'))
             checkout = work / 'upstream'
-            stage('test-source', ['git', 'clone', '--depth=1', '--branch', tag,
+            stage('test-source', ['git', '-c', 'core.autocrlf=false', 'clone', '--depth=1', '--branch', tag,
                                   recipe['repository'] + '.git', str(checkout)])
             current_stage = 'test-source-identity'
             actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=checkout,

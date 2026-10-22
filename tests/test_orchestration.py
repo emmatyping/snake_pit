@@ -1,9 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
 import signal
 import sys
 import tempfile
+import time
 import unittest
 
 from snake_pit.__main__ import plan
@@ -128,6 +130,27 @@ class WorkerTests(unittest.TestCase):
         tail = (self.root / 'test.tail.log').read_bytes()
         self.assertEqual(len(tail), 65536)
         self.assertTrue(tail.endswith(b'final diagnostic'))
+
+    def test_partial_output_is_saved_before_process_exits(self) -> None:
+        release = self.root / 'release'
+        phase: Phase = dict(name='streaming', argv=[sys.executable, '-c',
+            'import pathlib, sys, time; print("diagnostic", flush=True); '
+            'release = pathlib.Path(sys.argv[1]); '
+            '\nwhile not release.exists(): time.sleep(0.01)', str(release)], timeout_seconds=10)
+        log = self.root / 'streaming.log'
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(run_phase, phase, self.root, self.root, dict(os.environ))
+            try:
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline:
+                    if log.exists() and b'diagnostic' in log.read_bytes():
+                        break
+                    time.sleep(0.01)
+                self.assertFalse(pending.done())
+                self.assertIn(b'diagnostic', log.read_bytes())
+            finally:
+                release.touch()
+            self.assertEqual(pending.result()['status'], 'passed')
 
 
 if __name__ == '__main__':
