@@ -220,6 +220,7 @@ class ActionsTests(unittest.TestCase):
             def phase_fixture(phase: Phase, cwd: Path, logs: Path, env: dict[str, str]) -> PhaseResult:
                 argv = phase['argv']
                 if phase['name'] == 'collect':
+                    self.assertEqual(env['PYTHONFAULTHANDLER'], '')
                     scripts = work / 'venv' / ('Scripts' if os.name == 'nt' else 'bin')
                     self.assertEqual(env['PATH'].split(os.pathsep)[0], str(scripts))
                     self.assertEqual(env['VIRTUAL_ENV'], str(work / 'venv'))
@@ -228,6 +229,7 @@ class ActionsTests(unittest.TestCase):
                 elif phase['name'] == 'archive-test-source':
                     Path(next(arg.split('=', 1)[1] for arg in argv if arg.startswith('--output='))).write_text('archive')
                 elif phase['name'] == 'build':
+                    self.assertEqual(env['PYTHONFAULTHANDLER'], '1')
                     wheels = Path(argv[argv.index('--out-dir') + 1])
                     wheels.mkdir()
                     (wheels / 'fixture.whl').write_text('trusted fixture')
@@ -236,7 +238,10 @@ class ActionsTests(unittest.TestCase):
                 return {'name': phase['name'], 'argv': argv,
                         'status': 'failed' if phase['name'] == 'collect' else 'passed', 'returncode': 5}
 
-            with patch('snake_pit.project.restore', return_value=Path(sys.executable)), \
+            recipe = load_recipes()['packaging'].copy()
+            recipe['test_env'] = {'PYTHONFAULTHANDLER': ''}
+            with patch('snake_pit.project.load_recipes', return_value={'packaging': recipe}), \
+                    patch('snake_pit.project.restore', return_value=Path(sys.executable)), \
                     patch('snake_pit.project.dependencies'), patch('snake_pit.project.download', download_fixture), \
                     patch('snake_pit.project.shutil.which', return_value='uv'), \
                     patch('snake_pit.project.subprocess.check_output', return_value=load_recipes()['packaging']['commit']), \

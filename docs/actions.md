@@ -111,8 +111,11 @@ Pytest execution stops after ten failures so incompatible suites produce useful
 diagnostics without running thousands of already-blocked cases. Upstream suites
 run from their checkout with the current directory excluded from Python's default
 import path; recipes can select `import_mode = "prepend"` when their test helpers
-require it. `pytest_args` adds recipe-specific options, such as enabling JUnit
-output when an upstream configuration disables its plugin.
+require it. `test_env` overrides environment variables for collection and testing,
+after building and checking the package import. Pytest's recipe clears the harness's
+forced `PYTHONFAULTHANDLER` setting because its own tests exercise both startup states.
+`pytest_args` adds recipe-specific options. Pytest's own suite uses `-W default`
+to report warnings without promoting them to errors.
 
 The job reads the selected version and sdist digest from [data/recipes.toml](../data/recipes.toml),
 downloads that exact sdist and verifies its digest, creates a

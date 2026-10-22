@@ -292,6 +292,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         stage('install', [uv, 'pip', 'sync', '--python', str(target), '--no-build-isolation', str(lock)])
         module = recipe['module']
         stage('import', [str(target), '-c', f'import {module}; print({module}.__file__)'])
+        env.update(recipe.get('test_env', {}))
 
         if recipe.get('adapter') == 'django':
             selection = recipe.get('selection', [])

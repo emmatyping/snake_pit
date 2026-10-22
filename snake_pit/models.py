@@ -30,6 +30,7 @@ class Recipe(TypedDict):
     build_dependencies: NotRequired[list[str]]
     import_mode: NotRequired[str]
     pytest_args: NotRequired[list[str]]
+    test_env: NotRequired[dict[str, str]]
     installed: NotRequired[bool]
     adapter: NotRequired[str]
     selection: NotRequired[list[str]]

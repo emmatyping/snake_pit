@@ -54,6 +54,11 @@ tests = "tests"
 dependencies = ["pytest", "pytest-asyncio", "Babel", "trio"]
 
 [pytest]
+# Exercise dependency fallbacks while keeping warnings visible in results.
+pytest_args = ["-W", "default"]
+import_mode = "prepend"
+# The suite tests both enabled and disabled interpreter startup states.
+test_env = { PYTHONFAULTHANDLER = "" }
 version = "9.1.1"
 sdist_url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz"
 sdist_sha256 = "1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313"
@@ -62,7 +67,7 @@ commit = "cf470ec0bf7eb89cd97dd56df4859eae5db46447"
 tag = "{version}"
 module = "pytest"
 tests = "testing"
-dependencies = ["attrs", "hypothesis", "pygments", "requests", "xmlschema", "pexpect; sys_platform != 'win32'", "argcomplete"]
+dependencies = ["attrs", "hypothesis", "pygments", "requests", "xmlschema", "pexpect; sys_platform != 'win32'", "argcomplete", "mock"]
 
 [packaging]
 version = "26.3"
