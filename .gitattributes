@@ -1,0 +1,2 @@
+# Recipe provenance hashes must match across native workers and the planner.
+data/recipes.toml text eol=lf

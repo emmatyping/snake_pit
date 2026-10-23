@@ -170,7 +170,10 @@ it removes the MSBuild NDEBUG definition without switching to the debug CRT.
 
 [data/recipes.toml](../data/recipes.toml) pins package versions, source URLs/hashes,
 upstream test commits, test selections and native dependencies. Test jobs verify
-source hashes and Git test-source identities. NumPy, pandas and greenlet use
+source hashes and Git test-source identities. `.gitattributes` keeps this file's
+checkout line endings at LF on every platform so its byte-level provenance hash
+matches between the Linux planner and native workers, including Windows.
+NumPy, pandas and greenlet use
 installed test paths; lxml uses its native suite factories; Django uses its named
 SQLite subset. Empty collection fails, and pytest stops after ten failures.
 `import_mode`, `pytest_args` and `test_env` allow explicit upstream runner settings.

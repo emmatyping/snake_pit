@@ -1,11 +1,33 @@
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
-from snake_pit.dependencies import load_projects
+from snake_pit.dependencies import RECIPES, load_projects
 
 
 class DependencyTests(unittest.TestCase):
+    def test_recipe_checkout_preserves_bytes_with_windows_git_settings(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        expected = RECIPES.read_bytes().replace(b'\r\n', b'\n')
+        self.assertEqual(RECIPES.read_bytes(), expected)
+        with tempfile.TemporaryDirectory() as directory:
+            checkout = Path(directory)
+            (checkout / 'data').mkdir()
+            recipe = checkout / 'data/recipes.toml'
+            recipe.write_bytes(expected)
+            (checkout / '.gitattributes').write_bytes((root / '.gitattributes').read_bytes())
+
+            def git(*args: str) -> None:
+                subprocess.run(['git', '-C', str(checkout), *args], check=True, capture_output=True)
+
+            git('init', '--quiet')
+            git('add', '.gitattributes', 'data/recipes.toml')
+            recipe.unlink()
+            git('-c', 'core.autocrlf=true', '-c', 'core.eol=crlf',
+                'checkout-index', '--force', 'data/recipes.toml')
+            self.assertEqual(recipe.read_bytes(), expected)
+
     def test_recipe_version_is_the_project_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'recipes.toml'
