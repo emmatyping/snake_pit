@@ -15,7 +15,7 @@ from .artifacts import locked_versions, normalize, read_results
 from .dependencies import RECIPES, load_projects
 from .models import ProjectResult
 from .modes import DEFAULT_MODE, MODES
-from .refs import Revision, resolve
+from .refs import Revision, parse_ref, resolve, resolve_pull
 
 
 class ComparisonPlan(TypedDict):
@@ -51,12 +51,18 @@ class Difference(TypedDict):
     notes: list[str]
 
 
-def make_plan(ref: str, platforms: list[str], mode: str, projects: list[str] | None = None) -> ComparisonPlan:
+def make_plan(ref: str, platforms: list[str], mode: str, projects: list[str] | None = None,
+              *, base_ref: str | None = None) -> ComparisonPlan:
     catalog = [p['name'] for p in load_projects()]
     if projects is not None and (not projects or len(projects) != len(set(projects)) or set(projects) - set(catalog)):
         raise ValueError('provide distinct project names from recipes.toml')
-    baseline = resolve('main')
-    target = baseline.copy() if ref == 'main' else resolve(ref)
+    if base_ref is None and parse_ref(ref)[2] is not None:
+        target, baseline = resolve_pull(ref)
+    else:
+        baseline_ref = 'main' if base_ref is None else base_ref
+        baseline = resolve(baseline_ref)
+        target = baseline.copy() if parse_ref(ref) == parse_ref(baseline_ref) else resolve(ref)
+        target['ref'] = ref
     value = matrices(baseline['commit'], platforms, mode)
     return dict(baseline=baseline, target=target, mode=mode, platforms=value['builds'],
                 projects=catalog if projects is None else projects,
@@ -280,7 +286,7 @@ def markdown(value: dict[str, object]) -> str:
         lines.extend(['Interpreter preparation was incomplete; package comparisons could not run on every platform.', ''])
 
     def table(items: list[Difference]) -> None:
-        lines.extend(['| Platform | Project | Difference | main | Target |', '| --- | --- | --- | --- | --- |'])
+        lines.extend(['| Platform | Project | Difference | Baseline | Target |', '| --- | --- | --- | --- | --- |'])
         for row in items:
             details = row['change']
             if row['blocked_by']:
@@ -301,7 +307,7 @@ def markdown(value: dict[str, object]) -> str:
         table(unchanged)
         lines.extend(['</details>', ''])
     for row in changed:
-        for label, ids in (('New failures (passed on main)', row['new_failures']),
+        for label, ids in (('New failures (passed on baseline)', row['new_failures']),
                            ('Fixed failures', row['fixed_failures']),
                            ('Newly observed failures (no baseline pass)', row['newly_observed_failures']),
                            ('Changed failure messages', row['changed_failures']),
@@ -321,6 +327,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest='command', required=True)
     planning = sub.add_parser('plan')
     planning.add_argument('--ref', required=True)
+    planning.add_argument('--base-ref', help='Baseline ref (default: PR base branch, otherwise main)')
     planning.add_argument('--platform', nargs='+', choices=tuple(load_platforms()['platforms']), required=True)
     planning.add_argument('--mode', choices=MODES, default=DEFAULT_MODE)
     planning.add_argument('--output', type=Path, required=True)
@@ -341,7 +348,7 @@ def main() -> int:
     comparing.add_argument('--summary', type=Path)
     args = parser.parse_args()
     if args.command == 'plan':
-        value = make_plan(args.ref, args.platform, args.mode, args.project)
+        value = make_plan(args.ref, args.platform, args.mode, args.project, base_ref=args.base_ref)
         args.output.write_text(json.dumps(value, indent=2) + '\n')
         if args.github_output:
             emit_plan(value, args.github_output)

@@ -1,5 +1,5 @@
 name: CPython downstream comparison
-run-name: CPython ${{ inputs.ref }} vs main / ${{ inputs.mode }}
+run-name: CPython ${{ inputs.ref }} vs ${{ inputs.base_ref || 'PR base or main' }} / ${{ inputs.mode }}
 
 on:
   workflow_dispatch:
@@ -8,6 +8,10 @@ on:
         description: CPython branch, commit, PR URL, or owner/repo:branch
         type: string
         required: true
+      base_ref:
+        description: Optional baseline ref (blank uses the PR base branch, otherwise main)
+        type: string
+        default: ''
       platforms:
         description: Space-separated PEP 11 Tier 1 target triples
         type: string
@@ -51,6 +55,7 @@ jobs:
       - id: plan
         env:
           CPYTHON_REF: ${{ inputs.ref }}
+          BASE_REF: ${{ inputs.base_ref }}
           PLATFORMS: ${{ inputs.platforms }}
           MODE: ${{ inputs.mode }}
           MAX_PARALLEL: ${{ inputs.max_parallel }}
@@ -65,7 +70,7 @@ jobs:
           maximum = float(os.environ['MAX_PARALLEL'])
           if not maximum.is_integer() or not 1 <= maximum <= 256:
               raise SystemExit('max_parallel must be an integer from 1 through 256')
-          value = make_plan(os.environ['CPYTHON_REF'], os.environ['PLATFORMS'].split(), os.environ['MODE'], os.environ['PROJECTS'].split() or None)
+          value = make_plan(os.environ['CPYTHON_REF'], os.environ['PLATFORMS'].split(), os.environ['MODE'], os.environ['PROJECTS'].split() or None, base_ref=os.environ['BASE_REF'] or None)
           Path('comparison-plan.json').write_text(json.dumps(value, indent=2) + '\n')
           emit_plan(value, Path(os.environ['GITHUB_OUTPUT']))
           PY
@@ -117,7 +122,7 @@ jobs:
         with:
           pattern: interpreter-*
           path: artifacts/interpreters
-      - name: Compare main and candidate
+      - name: Compare baseline and candidate
         shell: bash
         run: uv run --locked --no-dev python -m snake_pit.comparison report --plan plan/comparison-plan.json --artifacts artifacts --output comparison --summary "$GITHUB_STEP_SUMMARY"
       - if: always()

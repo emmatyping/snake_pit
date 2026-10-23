@@ -108,6 +108,56 @@ class RefTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             make_plan('main', [PLATFORM], 'debug', ['unknown'])
 
+    def test_pr_uses_current_base_branch_instead_of_recorded_base_sha(self) -> None:
+        for ref in ('https://github.com/python/cpython/pull/123', 'refs/pull/123/head'):
+            with self.subTest(ref=ref), patch('snake_pit.refs.github_json', side_effect=[{
+                'head': {'sha': 'b' * 40, 'repo': {'full_name': 'contributor/cpython'}},
+                'base': {'sha': 'c' * 40, 'ref': '3.15', 'repo': {'full_name': 'python/cpython'}},
+            }, {'sha': 'a' * 40}]) as api:
+                plan = make_plan(ref, [PLATFORM], 'release', ['packaging'])
+            self.assertEqual(api.call_args_list, [unittest.mock.call('repos/python/cpython/pulls/123'),
+                                                  unittest.mock.call('repos/python/cpython/commits/3.15')])
+            self.assertEqual(plan['baseline'], {'repository': 'python/cpython', 'ref': 'python/cpython:3.15',
+                                                'commit': 'a' * 40})
+            self.assertEqual(plan['target']['repository'], 'contributor/cpython')
+            self.assertEqual(plan['target']['commit'], 'b' * 40)
+            self.assertFalse(plan['same_commit'])
+
+    def test_explicit_baseline_overrides_pr_base_and_accepts_fork_refs(self) -> None:
+        baseline = {'repository': 'maintainer/cpython', 'ref': 'maintainer/cpython:base', 'commit': 'a' * 40}
+        target = {'repository': 'contributor/cpython', 'ref': 'refs/pull/123/head', 'commit': 'b' * 40}
+        with patch('snake_pit.comparison.resolve', side_effect=[baseline, target]) as resolver, \
+                patch('snake_pit.comparison.resolve_pull') as pull:
+            plan = make_plan(target['ref'], [PLATFORM], 'debug', ['packaging'], base_ref=baseline['ref'])
+        self.assertEqual(resolver.call_args_list, [unittest.mock.call(baseline['ref']), unittest.mock.call(target['ref'])])
+        pull.assert_not_called()
+        self.assertEqual(plan['baseline'], baseline)
+        self.assertEqual(plan['target'], target)
+
+    def test_equivalent_baseline_refs_are_resolved_once(self) -> None:
+        revision = {'repository': 'python/cpython', 'ref': 'python/cpython:3.15', 'commit': 'a' * 40}
+        with patch('snake_pit.comparison.resolve', return_value=revision) as resolver:
+            plan = make_plan('https://github.com/python/cpython/tree/3.15', [PLATFORM], 'debug',
+                             ['packaging'], base_ref='python/cpython:3.15')
+        resolver.assert_called_once_with('python/cpython:3.15')
+        self.assertTrue(plan['same_commit'])
+        self.assertEqual(plan['target']['ref'], 'https://github.com/python/cpython/tree/3.15')
+
+    def test_primary_cli_passes_baseline_and_rejects_it_with_legacy_commit(self) -> None:
+        from snake_pit.__main__ import main
+        import contextlib
+        with patch.object(sys, 'argv', ['snake_pit', 'plan', '--ref', 'feature', '--base-ref', '3.15',
+                                       '--platform', PLATFORM]), \
+                patch('snake_pit.comparison.make_plan', return_value={}) as planner, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(), 0)
+        planner.assert_called_once_with('feature', [PLATFORM], 'debug', base_ref='3.15')
+        with patch.object(sys, 'argv', ['snake_pit', 'plan', '--commit', 'a' * 40, '--base-ref', '3.15',
+                                       '--platform', PLATFORM]), contextlib.redirect_stderr(io.StringIO()), \
+                self.assertRaises(SystemExit) as error:
+            main()
+        self.assertEqual(error.exception.code, 2)
+
 
 class SchedulingTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -266,7 +316,7 @@ class ReportTests(unittest.TestCase):
             rendered = markdown(value)
             self.assertIn('suite::new', rendered)
             self.assertIn('Unchanged results (1)', rendered)
-            self.assertIn('passed on main', rendered)
+            self.assertIn('passed on baseline', rendered)
 
     def test_missing_interpreter_is_reported_once_and_comparison_is_incomplete(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

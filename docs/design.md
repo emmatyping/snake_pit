@@ -31,7 +31,7 @@ separate, commit-pinned development recipe.
 
 ## Qualification pipeline
 
-The [Actions implementation](actions.md) resolves a GitHub ref and CPython main,
+The [Actions implementation](actions.md) resolves a GitHub ref and its baseline,
 builds both interpreters, probes source wheels, and gates test jobs using exact
 package identities in the resolved locks. Test outcomes remain independent of
 build availability. Candidate resolution uses the baseline's available version
@@ -40,8 +40,10 @@ Complete dynamic build-closure locking and offline isolation remain fuller
 qualification targets described below.
 
 1. A trusted controller accepts a GitHub branch, commit or PR head, one of the
-   recorded Tier 1 targets and a build mode. Resolve it and `python/cpython` main
-   once, then verify the fetched immutable CPython commits.
+   recorded Tier 1 targets and a build mode. Resolve it and the optional `base_ref`
+   once, then verify the fetched immutable CPython commits. Without an override,
+   use the PR's base branch for PR refs and `python/cpython` main otherwise.
+   Identical commits share one build and test run per platform.
    Record configure/build flags, compiler, SDK/libc, dependencies, `sys.version`,
    `sysconfig`, SOABI, debug flags, pointer width, and GIL configuration. Check
    required standard-library extensions such as `_ssl`, `_sqlite3`, and `_ctypes`.

@@ -49,20 +49,40 @@ def parse_ref(value: str) -> tuple[str, str, int | None]:
     return repository, ref, pull
 
 
-def resolve(value: str) -> Revision:
-    repository, ref, pull = parse_ref(value)
-    if pull is not None:
-        data = github_json(f'repos/{repository}/pulls/{pull}')
-        head = cast(dict[str, object], data['head'])
-        head_repo = cast(dict[str, object] | None, head.get('repo'))
-        if head_repo is not None:
-            repository = str(head_repo['full_name'])
-        commit = str(head['sha'])
-    else:
-        data = github_json(f'repos/{repository}/commits/{quote(ref, safe="")}')
-        commit = str(data['sha'])
+def _revision(repository: str, ref: str, commit: str) -> Revision:
     if not re.fullmatch(r'[0-9a-f]{40}', commit):
         raise ValueError('GitHub did not resolve the ref to a full commit SHA')
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
         raise ValueError('invalid GitHub head repository')
-    return dict(repository=repository, ref=value, commit=commit)
+    return dict(repository=repository, ref=ref, commit=commit)
+
+
+def _pull_revision(data: dict[str, object], side: str, repository: str, value: str) -> Revision:
+    revision = cast(dict[str, object], data[side])
+    repo = cast(dict[str, object] | None, revision.get('repo'))
+    if repo is not None:
+        repository = str(repo['full_name'])
+    ref = value if side == 'head' else f'{repository}:{revision["ref"]}'
+    return _revision(repository, ref, str(revision['sha']))
+
+
+def resolve_pull(value: str) -> tuple[Revision, Revision]:
+    """Pin a PR's head and the current tip of its base branch."""
+    repository, _, pull = parse_ref(value)
+    if pull is None:
+        raise ValueError('expected a pull-request reference')
+    data = github_json(f'repos/{repository}/pulls/{pull}')
+    head = _pull_revision(data, 'head', repository, value)
+    base = _pull_revision(data, 'base', repository, value)
+    # Closed PRs can retain an old base SHA. Resolve the named branch so the
+    # baseline is its current tip, just as with an explicit base_ref.
+    return head, resolve(base['ref'])
+
+
+def resolve(value: str) -> Revision:
+    repository, ref, pull = parse_ref(value)
+    if pull is not None:
+        data = github_json(f'repos/{repository}/pulls/{pull}')
+        return _pull_revision(data, 'head', repository, value)
+    data = github_json(f'repos/{repository}/commits/{quote(ref, safe="")}')
+    return _revision(repository, value, str(data['sha']))

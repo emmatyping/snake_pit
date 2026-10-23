@@ -1,7 +1,8 @@
 # Snake Pit
 
-Compare a CPython GitHub branch, commit or PR head against `python/cpython`'s
-`main` on the selected Tier 1 platforms. The 28 projects, versions, source hashes,
+Compare a CPython GitHub branch, commit or PR head against a baseline on the
+selected Tier 1 platforms. The baseline defaults to the PR's base branch for PR
+references, or `python/cpython`'s `main` otherwise. The 28 projects, versions, source hashes,
 and test commands live in [data/recipes.toml](data/recipes.toml).
 
 The workflow resolves both refs to immutable SHAs, builds both interpreters and
@@ -39,6 +40,11 @@ To dispatch a comparison:
 gh workflow run downstream.yml -f ref="$CPYTHON_REF" \
   -f platforms="$TARGET_TRIPLE" -f mode=release
 ```
+
+Override the baseline with `-f base_ref=3.15` (or `--base-ref 3.15` for local
+planning). For intermittent checks of main itself, dispatch with `-f ref=main`.
+When target and baseline resolve to the same commit, builds and tests run only
+once and their outcomes are reused for both sides of the comparison.
 
 The optional `projects` input narrows the selected catalog, for example
 `-f projects=packaging` for a small workflow smoke check. By default every recipe

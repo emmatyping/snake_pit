@@ -1,7 +1,9 @@
 # Comparative runs in GitHub Actions
 
 [downstream.yml](../.github/workflows/downstream.yml) compares a GitHub CPython
-reference with the current `main` of `python/cpython`. It records the resolved
+reference with an optional `base_ref` baseline. If omitted, a PR reference uses
+the PR's base branch; other references use `main` of `python/cpython`.
+It records the resolved
 repository and full SHA for both sides before any interpreter build starts.
 A PR URL selects its **head commit**, including a fork's repository. It does not
 select GitHub's synthetic merge commit or the PR's merge base.
@@ -16,6 +18,7 @@ gh workflow run downstream.yml \
 | Input | Meaning |
 | --- | --- |
 | `ref` | Required branch, commit, GitHub PR/commit/tree URL, or `owner/repo:branch`. A bare ref is in `python/cpython`. |
+| `base_ref` | Optional baseline in the same ref forms. Blank uses the PR's base branch for PR references, otherwise `main`. |
 | `platforms` | Required space-separated recorded Tier 1 target triples. |
 | `mode` | `debug` (default), `release_assertions`, or `release`, optionally suffixed with `-freethreading`. |
 | `projects` | Optional space-separated recipe names; blank selects the whole catalog. |
@@ -24,6 +27,11 @@ gh workflow run downstream.yml \
 For example, `-f ref=somebody/cpython:fix-encoding -f projects=packaging` selects a
 fork branch and a small project set. `gh workflow run --ref` selects the *harness*
 workflow branch; `-f ref=...` selects the CPython revision under test.
+An explicit `-f base_ref=3.15` overrides automatic baseline selection. Without an
+override, the PR response supplies the head SHA and base branch name; that branch's
+current tip is resolved separately and pinned as the baseline. This also avoids
+using a closed PR's stale base SHA. The baseline is the branch tip, not the PR's
+merge base.
 Public GitHub refs are resolved through the GitHub API. The workflow gives the
 trusted planning step a read-only token; local planning can use `GITHUB_TOKEN`
 when needed. Ref strings are data, never interpolated into executable shell code.
@@ -33,7 +41,7 @@ Local planning and report generation are also available:
 ```sh
 uv run --locked python -m snake_pit plan --ref "$CPYTHON_REF" --platform "$TARGET_TRIPLE"
 uv run --locked python -m snake_pit.comparison plan --ref "$CPYTHON_REF" \
-  --platform "$TARGET_TRIPLE" --project packaging --output comparison-plan.json
+  --base-ref 3.15 --platform "$TARGET_TRIPLE" --project packaging --output comparison-plan.json
 uv run --locked python -m snake_pit.comparison report \
   --plan comparison-plan.json --artifacts downloaded-outcomes --output comparison
 ```
@@ -46,7 +54,7 @@ matrices implement the fan-out; see [GitHub's workflow reuse documentation](http
 
 ```mermaid
 flowchart TD
-    R[Resolve main and target to SHAs] --> B[Build both CPython interpreters]
+    R[Resolve baseline and target to SHAs] --> B[Build both CPython interpreters]
     B --> P[Prepare baseline source wheels and dependency locks]
     P --> M[Select and run baseline tests]
     P --> Q[Prepare target with baseline version constraints]
@@ -86,7 +94,7 @@ Baseline preparation records `pylock.tools.toml`, `pylock.backends.toml`,
 `pylock.build.toml` and `pylock.toml`. Target preparation converts each available
 baseline lock into exact version constraints for that phase. Tests retain their
 own prepared versions and substitute verified wheels from their own interpreter's
-builds. Wheel hashes can differ between main and target; package versions and
+builds. Wheel hashes can differ between baseline and target; package versions and
 source recipe hashes are the comparison inputs.
 
 This uses uv's documented [constraint and lock workflow](https://docs.astral.sh/uv/pip/compile/).
@@ -96,8 +104,18 @@ may prevent a later-phase lock from existing. The candidate can still progress
 using the locks that are available, and the report preserves dependency differences.
 A changed result with conflicting resolved versions is marked inconclusive.
 
-When the ref resolves to exactly main's SHA, only one side is built and tested.
+When the ref resolves to exactly the baseline's SHA, only one side is built and tested.
 The report reuses those observations for both logical sides.
+
+For an intermittent main check, dispatch the same workflow with matching refs:
+
+```sh
+gh workflow run downstream.yml -f ref=main -f base_ref=main \
+  -f platforms='x86_64-unknown-linux-gnu' -f mode=release
+```
+
+All selected tests run once per platform. The report includes their outcomes;
+shared test failures do not count as regressions in this comparative check.
 
 ## Reading the comparison
 
@@ -105,10 +123,10 @@ The final `compare` job always runs after platform work, unless the workflow was
 cancelled or planning failed. Its job summary emphasizes differences and collapses
 unchanged results. The `comparison` artifact contains Markdown and JSON reports.
 
-- **Regression:** main passes but target fails, a previously passing test fails,
+- **Regression:** baseline passes but target fails, a previously passing test fails,
   or a previously available package build becomes unavailable.
 - **Improved:** a failing outcome or test becomes passing, or a build progresses.
-- **Unchanged failure:** a failure already observed on main; this alone does not
+- **Unchanged failure:** a failure already observed on the baseline; this alone does not
   fail the comparative check.
 - **Newly blocked:** a consumer cannot run because a required package build is
   unavailable. These rows retain blocker identities rather than pretending the
@@ -130,7 +148,7 @@ pytest call and teardown records) form one comparison group: every record must
 pass for the group to pass, and all failure messages are retained in sorted order.
 Collectors that reuse IDs therefore provide group-level evidence rather than
 separate identities for each occurrence. The report only calls an
-individual failure new when that test actually passed on main. Non-JUnit adapters
+individual failure new when that test actually passed on the baseline. Non-JUnit adapters
 currently compare the overall phase/outcome; their detailed native runner output
 remains in logs. A difference is an investigation lead, not proof that CPython is
 at fault. Rerun flaky cases and minimize failures before attributing them.
