@@ -2,7 +2,7 @@
 
 Compare a CPython GitHub branch, commit or PR head against a baseline on the
 selected Tier 1 platforms. The baseline defaults to the PR's base branch for PR
-references, or `python/cpython`'s `main` otherwise. The 32 projects, versions, source hashes,
+references, or `python/cpython`'s `main` otherwise. Project names, versions, source hashes,
 and test commands live in [data/recipes.toml](data/recipes.toml).
 
 The workflow resolves both refs to immutable SHAs, builds both interpreters and

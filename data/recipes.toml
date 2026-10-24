@@ -425,3 +425,18 @@ version = "3.11.2"
 sdist_url = "https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz"
 sdist_sha256 = "cec596316640f2b394b8f0daa0ea61a8eae82d017b620b9f202befb972a59ea4"
 commit = "d3ca9172e392048ec242b90e8423e88d1a3000b2"
+
+[sphinx]
+# Selected HTML-builder regression tests with the upstream Sphinx fixtures.
+repository = "https://github.com/sphinx-doc/sphinx"
+tag = "v{version}"
+source = "git"
+module = "sphinx"
+tests = "tests/test_builders/test_build_html.py"
+dependencies = ["pytest>=9.1", "pytest-xdist[psutil]>=3.7", "cython>=3.1", "defusedxml>=0.7.1", "setuptools>=80.0", "typing_extensions>=4.15"]
+build_dependencies = ["flit_core>=3.12"]
+import_mode = "prepend"
+version = "9.2.0"
+sdist_url = "https://files.pythonhosted.org/packages/64/d4/413466f0be8b1cb0e3e43893a148b96d7462d0923d82b4166b21afc5f30c/sphinx-9.2.0.tar.gz"
+sdist_sha256 = "90470459f3cab15d9dfed146c71cf77694b0445df17b2e0e69059cb9f7fc9ee4"
+commit = "7b2c103eaa4cabf0ac47224c444cf0cbc7c745e5"

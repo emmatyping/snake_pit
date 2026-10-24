@@ -34,7 +34,7 @@ class PlanningTests(unittest.TestCase):
         projects = load_projects()
         names = {project['name'] for project in projects}
         self.assertEqual(len(projects), len(names))
-        self.assertTrue({'pip', 'cython', 'sympy', 'memray', 'matplotlib'} <= names)
+        self.assertTrue({'pip', 'cython', 'sympy', 'memray', 'matplotlib', 'sphinx'} <= names)
         for project in projects:
             self.assertRegex(project['sdist']['sha256'], r'^[0-9a-f]{64}$')
             self.assertTrue(project['sdist']['url'].startswith('https://'))
