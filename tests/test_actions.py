@@ -9,16 +9,50 @@ import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
+import xml.etree.ElementTree as ET
 
 from snake_pit.__main__ import load_platforms, main
 from snake_pit.actions import build, build_interpreter, interpreter, matrices, restore
 from snake_pit.dependencies import load_projects, load_recipes
 from snake_pit.models import Phase, PhaseResult
 from snake_pit.modes import MODES, parse_mode
-from snake_pit.project import environment, lxml_command, run_project, windows_compiler_environment
+from snake_pit.project import cython_command, environment, lxml_command, run_project, windows_compiler_environment
 
 
 class ActionsTests(unittest.TestCase):
+    def test_cython_adapter_uses_installed_compiler_and_merges_xml_even_on_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            installed = root / 'installed/Cython'
+            installed.mkdir(parents=True)
+            (installed / '__init__.py').write_text('backend = "installed"\n')
+            checkout = root / 'upstream'
+            (checkout / 'Cython').mkdir(parents=True)
+            (checkout / 'Cython/__init__.py').write_text('raise AssertionError("source shadowed installed compiler")\n')
+            for code in (0, 7):
+                output = root / f'results-{code}'
+                output.mkdir()
+                (checkout / 'runtests.py').write_text(
+                    'import Cython, sys\nfrom pathlib import Path\n'
+                    'assert Cython.backend == "installed"\n'
+                    'assert Path(sys.argv[sys.argv.index("--cython-dir") + 1]) == Path(Cython.__file__).parent.parent\n'
+                    'assert sys.argv[-1] == "^run.list$"\n'
+                    'folder = Path(sys.argv[sys.argv.index("--xml-output") + 1]); folder.mkdir()\n'
+                    '(folder / "first.xml").write_text(\'<testsuite><testcase classname="native" name="first"/></testsuite>\')\n'
+                    '(folder / "second.xml").write_text(\'<testsuite><testcase classname="native" name="second"/></testsuite>\')\n'
+                    f'raise SystemExit({code})\n')
+                result = subprocess.run(cython_command(Path(sys.executable), checkout, output, ['^run.list$']),
+                    cwd=checkout, env=dict(os.environ, PYTHONPATH=str(installed.parent)), capture_output=True, text=True)
+                self.assertEqual(result.returncode, code, result.stderr)
+                self.assertEqual(len(list(ET.parse(output / 'tests.xml').iter('testcase'))), 2)
+            empty = root / 'empty'
+            empty.mkdir()
+            (checkout / 'runtests.py').write_text('')
+            result = subprocess.run(cython_command(Path(sys.executable), checkout, empty, []),
+                cwd=checkout, env=dict(os.environ, PYTHONPATH=str(installed.parent)), capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Cython produced no test results', result.stderr)
+
     def test_environment_retains_windows_paths_without_ci_credentials(self) -> None:
         paths = {'ProgramFiles': 'programs', 'ProgramFiles(x86)': 'programs-x86',
                  'LOCALAPPDATA': 'local-data', 'APPDATA': 'app-data'}
@@ -77,7 +111,7 @@ class ActionsTests(unittest.TestCase):
         platforms = list(load_platforms()['platforms'])
         value = matrices('a' * 40, platforms, 'debug')
         self.assertEqual(len(value['builds']), 5)
-        self.assertEqual(len(value['tests']), 140)
+        self.assertEqual(len(value['tests']), len(platforms) * len(load_projects()))
         self.assertEqual({(t['platform'], t['project']) for t in value['tests']},
                          {(platform, p['name']) for platform in platforms for p in load_projects()})
 

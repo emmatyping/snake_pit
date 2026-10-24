@@ -326,6 +326,7 @@ installed = true
 dependencies = ["pytest", "psutil", "objgraph"]
 
 [uvloop]
+exclude_platforms = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "0.23.0"
@@ -361,3 +362,66 @@ tag = "{version}"
 module = "pip"
 tests = "tests/unit"
 dependencies = ["pytest", "pytest-xdist", "pytest-rerunfailures", "pretend", "freezegun", "scripttest", "virtualenv", "installer", "build", "wheel", "setuptools", "werkzeug", "requests", "trustme"]
+
+[cython]
+# Selected native C/C++ compilation and runtime cases, including async and buffers.
+repository = "https://github.com/cython/cython"
+tag = "{version}"
+source = "git"
+module = "Cython"
+tests = "tests"
+dependencies = ["setuptools"]
+selection = ["^run\\.(dict|list|generators|cpp_classes|unicodemethods|bytesmethods|test_exceptions|coroutines|cpdef_optargs|memview_vector)$"]
+adapter = "cython"
+version = "3.3.0"
+sdist_url = "https://files.pythonhosted.org/packages/a9/d8/4981ef716ad0e3ff0d3ef383aefc6b03c4a88dee33b272bf8e0d833001ca/cython-3.3.0.tar.gz"
+sdist_sha256 = "eed0d93fbca7087f143b42c34b05a825849bdf17f101572c2105acfa49aa88b8"
+commit = "bcd04a2966842d80de6ecff4e68e8d892bec5ef7"
+
+[sympy]
+# Bound expensive symbolic computation to the upstream core suite.
+repository = "https://github.com/sympy/sympy"
+tag = "sympy-{version}"
+source = "git"
+module = "sympy"
+tests = "sympy/core/tests"
+dependencies = ["pytest", "hypothesis", "mpmath", "pytest-doctestplus", "pytest-timeout"]
+test_env = { "SYMPY_GROUND_TYPES" = "python" }
+version = "1.14.0"
+sdist_url = "https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz"
+sdist_sha256 = "d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517"
+commit = "16fa855354eb7bcabd3fe10993841e03b1382692"
+
+[memray]
+# Unit tests exercise the installed native tracking helpers; Windows is unsupported.
+repository = "https://github.com/bloomberg/memray"
+tag = "v{version}"
+source = "git"
+module = "memray"
+tests = "tests/unit"
+dependencies = ["memray[test]=={version}"]
+build_dependencies = ["scikit-build-core>=0.9", "cython>=3.1", "cmake>=3.30", "ninja"]
+linux = ["liblz4-dev", "libunwind-dev", "pkg-config"]
+macos = ["lz4", "pkg-config"]
+exclude_platforms = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
+version = "1.20.0"
+sdist_url = "https://files.pythonhosted.org/packages/99/3b/8f9736cbf698e62cb7efb0e1715a30d6d06b3cffd980b435209eb522d5f8/memray-1.20.0.tar.gz"
+sdist_sha256 = "ce1f1d900948d57d7db5b5d8d81f4ebfcb798eff674493503ce5bfaafcea84dc"
+commit = "f70db8143c7601ca55b4b219e50577a3f06e38ea"
+
+[matplotlib]
+# Headless installed transformation tests; omit baseline-image comparisons.
+repository = "https://github.com/matplotlib/matplotlib"
+tag = "v{version}"
+source = "git"
+module = "matplotlib"
+tests = "tests/test_transforms.py"
+dependencies = ["pytest", "pytest-rerunfailures!=16.0", "pytest-timeout", "pytest-cov"]
+build_dependencies = ["meson", "ninja"]
+pytest_args = ["-m", "not baseline_images"]
+installed = true
+test_env = { "MPLBACKEND" = "Agg" }
+version = "3.11.2"
+sdist_url = "https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz"
+sdist_sha256 = "cec596316640f2b394b8f0daa0ea61a8eae82d017b620b9f202befb972a59ea4"
+commit = "d3ca9172e392048ec242b90e8423e88d1a3000b2"

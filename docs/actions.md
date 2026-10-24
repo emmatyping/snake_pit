@@ -176,6 +176,13 @@ matches between the Linux planner and native workers, including Windows.
 NumPy, pandas and greenlet use
 installed test paths; lxml uses its native suite factories; Django uses its named
 SQLite subset. Empty collection fails, and pytest stops after ten failures.
+Memray's recipe excludes both Windows targets via `exclude_platforms` and runs
+its unit suite on Linux/macOS. SymPy runs its core suite. Matplotlib runs installed
+transformation tests with the Agg backend, excluding baseline-image comparisons.
+Cython uses its pinned upstream `runtests.py` with the installed compiler and a
+selection of native C/C++ cases covering containers, strings, exceptions, async
+code and memoryviews. Its per-suite XML is merged into `tests.xml`, even when the
+runner exits with a test failure; an empty native run fails explicitly.
 `import_mode`, `pytest_args` and `test_env` allow explicit upstream runner settings.
 `test_env` takes effect after building and checking the package import. Pytest's
 recipe reports warnings normally and clears forced faulthandler startup because

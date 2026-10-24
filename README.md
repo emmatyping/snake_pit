@@ -2,7 +2,7 @@
 
 Compare a CPython GitHub branch, commit or PR head against a baseline on the
 selected Tier 1 platforms. The baseline defaults to the PR's base branch for PR
-references, or `python/cpython`'s `main` otherwise. The 28 projects, versions, source hashes,
+references, or `python/cpython`'s `main` otherwise. The 32 projects, versions, source hashes,
 and test commands live in [data/recipes.toml](data/recipes.toml).
 
 The workflow resolves both refs to immutable SHAs, builds both interpreters and
@@ -66,11 +66,63 @@ is separate from CPython platform support; for example uvloop excludes Windows.
 
 ## Updating the project list
 
-Add or edit entries in [data/recipes.toml](data/recipes.toml). Each recipe contains
-an explicit `version`, `sdist_url`, and `sdist_sha256`, plus its test configuration.
-When upgrading, update the version, source URL/hash, and upstream test-source
-commit together. Source archives are verified before use. Actions creates jobs
-only for recipe entries.
+Manage [data/recipes.toml](data/recipes.toml) with the project commands:
+
+```sh
+uv run --locked python -m snake_pit update packaging  # One project
+uv run --locked python -m snake_pit update            # All configured projects
+uv run --locked python -m snake_pit update --dry-run  # Review changes without writing
+```
+
+Updates use the latest release reported by the [PyPI JSON API](https://docs.pypi.org/api/json/).
+The version, source archive URL/hash and upstream release-tag commit are updated
+together. Annotated Git tags are resolved to their underlying commit. Existing
+test settings and comments are preserved. A missing source archive, unresolved tag
+or failed request aborts the whole operation without writing partial updates.
+Unchanged versions keep their existing immutable pins. Updating does not build,
+install or execute downloaded package code.
+
+Select a specific release with `update packaging --version 25.0`. Override a
+project's tag template with `update numpy --tag 'v{version}'`; `--version` and
+`--tag` require a particular package. Templates support `{version}` and
+`{version_underscores}`. A fixed literal tag requires an explicit `--tag` override
+when moving to another version. Tests sourced from the sdist need no Git pin.
+
+To add a project, supply its import name and upstream test source:
+
+```sh
+uv run --locked python -m snake_pit add tomli-w \
+  --repository https://github.com/hukkin/tomli-w \
+  --tag '{version}' --module tomli_w --tests tests \
+  --dependency pytest
+```
+
+`add` obtains the source URL, SHA-256 and version from PyPI and resolves the release
+tag automatically. `--version` selects an exact release; optional `--commit` checks
+an expected tag commit. Package names are normalized. For tests included in a
+source archive, use `--source sdist`; repository and tag are then optional. The
+worker currently requires a non-yanked tar sdist; wheel-only and zip-only releases
+are rejected. Added recipes still need build/test qualification on the desired
+CPython revisions and platforms.
+
+`--dependency` and `--build-dependency` are repeatable. Test dependencies default to
+`pytest` when none are supplied; `--no-test-dependencies` records an empty list.
+Additional recipe settings are exposed through
+`--installed`, `--adapter`, `--selection`, `--import-mode`, `--pytest-arg`,
+`--test-env NAME=VALUE`, and repeatable `--linux`, `--macos`, and `--windows`
+options. Use `--pytest-arg=-W --pytest-arg=default` for arguments beginning with
+a dash, and `--test-env FLAG=` for an empty environment value. See `add --help`
+for the complete options.
+
+`--exclude-platform TARGET` records unsupported platforms (repeatable). Memray
+and uvloop exclude the Windows targets. The `cython` adapter runs a selected
+native compiler suite and merges its XML reports; SymPy selects its core suite,
+Memray its unit suite, and Matplotlib installed, headless transformation tests.
+
+Both commands support `--dry-run` and `--recipes PATH` for a different recipe file.
+Successful writes are atomic and use LF line endings. Concurrent edits are detected
+before replacement. The commands only edit local recipes; they do not commit or
+push changes. Actions creates jobs only for recipe entries.
 
 The development environment contains the control tools. Jobs generate their own
 build and runtime/test `pylock.toml` files for the target interpreter; those locks

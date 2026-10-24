@@ -247,7 +247,7 @@ def report(plan: ComparisonPlan, artifacts: Path) -> dict[str, object]:
         rows.append(difference(interpreters['baseline'], interpreters['target'], {}, {}))
         if any(interpreters[s]['status'] != 'passed' for s in interpreters):
             complete = False
-            continue  # One interpreter build result, rather than 28 invented package failures.
+            continue  # One interpreter build result, rather than invented package failures.
         for name in plan['projects']:
             pair: dict[str, tuple[Path, ProjectResult]] = {}
             for side in ('baseline', 'target'):

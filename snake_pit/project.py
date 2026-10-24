@@ -85,6 +85,29 @@ def lxml_command(python: Path, checkout: Path) -> list[str]:
             str(checkout / 'test.py'), '--no-src']
 
 
+def cython_command(python: Path, checkout: Path, output: Path, selection: list[str]) -> list[str]:
+    # Keep the source checkout off sys.path so runtests uses the built Cython.
+    # The upstream runner emits several XML files, including on test failure.
+    wrapper = '''import pathlib, runpy, sys, xml.etree.ElementTree as ET
+import Cython
+runner, report = map(pathlib.Path, sys.argv[1:3])
+package_root = pathlib.Path(Cython.__file__).resolve().parent.parent
+sys.argv = [str(runner), '--cython-dir', str(package_root), *sys.argv[3:]]
+try:
+    runpy.run_path(str(runner), run_name='__main__')
+finally:
+    results = ET.Element('testsuites')
+    for path in sorted((report.parent / 'cython-xml').rglob('*.xml')):
+        results.append(ET.parse(path).getroot())
+    if not list(results.iter('testcase')):
+        raise RuntimeError('Cython produced no test results')
+    ET.ElementTree(results).write(report, encoding='utf-8', xml_declaration=True)
+'''
+    return [str(python), '-P', '-c', wrapper, str(checkout / 'runtests.py'), str(output / 'tests.xml'),
+            '--xml-output', str(output / 'cython-xml'), '--work-dir', str(checkout.parent / 'cython-work'),
+            '-3', '--no-unit', '--no-doctest', '--no-pyregr', '--no-examples', '--no-code-style', *selection]
+
+
 def run_project(project_name: str, commit: str, platform: str, mode: str,
                 artifact: Path, work: Path, output: Path, *, build_only: bool = False,
                 prepared_root: Path | None = None, baseline_root: Path | None = None) -> ProjectResult:
@@ -320,7 +343,12 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         stage('import', [str(target), '-c', f'import {module}; print({module}.__file__)'])
         env.update(recipe.get('test_env', {}))
 
-        if recipe.get('adapter') == 'django':
+        if recipe.get('adapter') == 'cython':
+            selection = recipe.get('selection', [])
+            result['test_selection'] = selection
+            stage('test', cython_command(target, checkout, output, selection), checkout,
+                  framework='unittest', timeout=1800)
+        elif recipe.get('adapter') == 'django':
             selection = recipe.get('selection', [])
             command = [str(target), str(checkout / 'tests/runtests.py'), '--settings=test_sqlite', *selection]
             result['test_selection'] = selection

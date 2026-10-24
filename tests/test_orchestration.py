@@ -22,13 +22,19 @@ class PlanningTests(unittest.TestCase):
                 plan(commit, platform, 'release')
 
     def test_platform_exclusion(self) -> None:
-        jobs = plan('a' * 40, 'i686-pc-windows-msvc', 'release')['jobs']
-        self.assertEqual(next(j for j in jobs if j['project'] == 'uvloop')['status'], 'not-applicable')
+        for platform in ('i686-pc-windows-msvc', 'x86_64-pc-windows-msvc'):
+            jobs = plan('a' * 40, platform, 'release')['jobs']
+            for project in ('uvloop', 'memray'):
+                self.assertEqual(next(j for j in jobs if j['project'] == project)['status'], 'not-applicable')
+        for platform in ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu', 'aarch64-apple-darwin'):
+            jobs = plan('a' * 40, platform, 'release')['jobs']
+            self.assertEqual(next(j for j in jobs if j['project'] == 'memray')['status'], 'qualification-required')
 
     def test_selected_projects_have_locked_sources(self) -> None:
         projects = load_projects()
-        self.assertEqual(len(projects), 28)
-        self.assertIn('pip', {project['name'] for project in projects})
+        names = {project['name'] for project in projects}
+        self.assertEqual(len(projects), len(names))
+        self.assertTrue({'pip', 'cython', 'sympy', 'memray', 'matplotlib'} <= names)
         for project in projects:
             self.assertRegex(project['sdist']['sha256'], r'^[0-9a-f]{64}$')
             self.assertTrue(project['sdist']['url'].startswith('https://'))

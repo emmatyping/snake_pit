@@ -37,6 +37,7 @@ class Recipe(TypedDict):
     linux: NotRequired[list[str]]
     macos: NotRequired[list[str]]
     windows: NotRequired[list[str]]
+    exclude_platforms: NotRequired[list[str]]
     source: NotRequired[str]
     commit: NotRequired[str]
 

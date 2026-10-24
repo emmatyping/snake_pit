@@ -148,5 +148,5 @@ A baseline pass plus target failure is a regression candidate, not automatic pro
 of a CPython bug. Re-run flaky failures with a recorded seed and attempt ID, keep
 the original result, and minimize the failing case. Maintain separate raw and
 workaround results; track a workaround's reason, upstream issue, scope, and expiry.
-Interpreter build failure is reported once at the build level, not as 28 package
+Interpreter build failure is reported once at the build level, not as individual package
 failures. Successful qualification on one Tier 1 target does not qualify the others.
