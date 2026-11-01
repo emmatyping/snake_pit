@@ -141,7 +141,7 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
 
     def save() -> None:
         result['dependencies'] = locked_versions(output / 'pylock.toml')
-        for path in output.glob('pylock*.toml'):
+        for path in [*output.glob('pylock*.toml'), *output.glob('*constraints.txt')]:
             result['artifacts'][path.name] = sha256(path)
         temp = output / 'result.tmp'
         temp.write_text(json.dumps(result, indent=2) + '\n')
@@ -195,6 +195,16 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             override_file = output / 'dependency-overrides.txt'
             override_file.write_text('\n'.join(overrides) + '\n')
             override_options = ['--override', str(override_file)]
+
+        build_constraints = output / 'build-constraints.txt'
+
+        def constrain_builds(versions: dict[str, str]) -> None:
+            requirements = [f'{name}=={version}' for name, version in sorted(versions.items())
+                            if name not in override_names]
+            build_constraints.write_text('\n'.join([*requirements, *overrides]) + '\n')
+            env['UV_BUILD_CONSTRAINT'] = str(build_constraints)
+
+        constrain_builds(locked_versions(reference / 'pylock.build.toml') if reference is not None else {})
 
         def compile_options(input_path: Path, lock_name: str) -> list[str]:
             versions = locked_versions(reference / lock_name) if reference is not None else {}
@@ -306,9 +316,8 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         pyproject = source / 'pyproject.toml'
         config = tomllib.loads(pyproject.read_text()) if pyproject.exists() else {}
         build_requires = cast(list[str], config.get('build-system', {}).get('requires', ['setuptools', 'wheel']))
-        # Seed the common backend before building any source-only build dependencies.
-        # Keep these tools in the final lock: pip sync would otherwise uninstall them
-        # before compiling transitive dependencies such as MarkupSafe.
+        # Resolve explicit backend inputs for comparison and constrain isolated builds.
+        # Keep recipe build requirements in the recorded environment for provenance.
         backend_names = {'setuptools', 'wheel', 'meson-python', 'meson', 'ninja', 'cython', 'pybind11',
                          'setuptools-scm', 'setuptools-rust', 'maturin'}
         tools = ['setuptools', 'wheel', *recipe.get('build_dependencies', [])]
@@ -326,25 +335,26 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         backends_input = output / 'backends.in'
         backends_input.write_text('\n'.join(tools) + '\n')
         backends_lock = output / 'pylock.backends.toml'
-        stage('resolve-backends', [uv, 'pip', 'compile', '--python', str(target), '--no-build-isolation',
+        stage('resolve-backends', [uv, 'pip', 'compile', '--python', str(target),
                                    str(backends_input), '-o', str(backends_lock),
                                    *compile_options(backends_input, backends_lock.name)])
-        stage('bootstrap-backends', [uv, 'pip', 'sync', '--python', str(target), '--no-build-isolation', str(backends_lock)])
+        stage('bootstrap-backends', [uv, 'pip', 'sync', '--python', str(target), str(backends_lock)])
         build_requires = [*build_requires, 'setuptools', 'wheel', *recipe.get('build_dependencies', [])]
         build_input = output / 'build.in'
         build_input.write_text('\n'.join(build_requires) + '\n')
         build_lock = output / 'pylock.build.toml'
         stage('resolve-build', [uv, 'pip', 'compile', '--python', str(target), '--prerelease=allow',
-                                '--no-build-isolation', str(build_input), '-o', str(build_lock),
+                                str(build_input), '-o', str(build_lock),
                                 *compile_options(build_input, build_lock.name)])
-        stage('bootstrap', [uv, 'pip', 'sync', '--python', str(target), '--no-build-isolation', str(build_lock)])
+        constrain_builds(locked_versions(build_lock))
+        stage('bootstrap', [uv, 'pip', 'sync', '--python', str(target), str(build_lock)])
         if own_prepared is None and (source / 'Cargo.lock').exists():
             stage('cargo-fetch', ['cargo', 'fetch', '--locked', '--manifest-path', str(source / 'Cargo.toml')])
             result['artifacts']['Cargo.lock'] = sha256(source / 'Cargo.lock')
             env['CARGO_NET_OFFLINE'] = 'true'
         wheels = output / 'wheels'
         if own_prepared is None:
-            stage('build', [uv, 'build', '--wheel', '--python', str(target), '--no-build-isolation',
+            stage('build', [uv, 'build', '--wheel', '--python', str(target),
                              '--out-dir', str(wheels), str(sdist)])
         else:
             wheel = verified_wheel(*own_prepared)
@@ -361,13 +371,13 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         inputs.write_text('\n'.join([built[0].as_uri(), *build_requires,
                                       *[d.format(version=selected['release']) for d in recipe['dependencies']]]) + '\n')
         lock = output / 'pylock.toml'
-        stage('resolve-tests', [uv, 'pip', 'compile', '--python', str(target), '--no-build-isolation',
+        stage('resolve-tests', [uv, 'pip', 'compile', '--python', str(target),
                                '--prerelease=allow', str(inputs), '-o', str(lock),
                                *compile_options(inputs, lock.name)])
         if build_only:
             result['status'] = 'built'
             return result
-        stage('install', [uv, 'pip', 'sync', '--python', str(target), '--no-build-isolation', str(lock)])
+        stage('install', [uv, 'pip', 'sync', '--python', str(target), str(lock)])
         module = recipe['module']
         stage('import', [str(target), '-c', f'import {module}; print({module}.__file__)'])
         env.update(recipe.get('test_env', {}))

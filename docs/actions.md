@@ -109,6 +109,14 @@ own prepared versions and substitute verified wheels from their own interpreter'
 builds. Wheel hashes can differ between baseline and target; package versions and
 source recipe hashes are the comparison inputs.
 
+All package builds use uv's default PEP 517 build isolation. The worker passes
+`build-constraints.txt` through `UV_BUILD_CONSTRAINT` during resolution, building,
+and installation, so isolated dependency builds also use catalog source overrides.
+Available baseline build-lock versions constrain preparation; the resolved build
+lock constrains subsequent builds. The constraint file is hashed in the result
+and retained in the logs. Dynamically requested dependencies absent from that lock
+are still resolved by uv; this is not yet a complete lock of every nested build.
+
 This uses uv's documented [constraint and lock workflow](https://docs.astral.sh/uv/pip/compile/).
 If the target cannot resolve the baseline versions, that failure remains visible;
 constraints are not silently relaxed to make the target pass. A baseline failure

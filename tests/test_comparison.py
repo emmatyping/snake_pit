@@ -389,6 +389,8 @@ class PreparedWheelTests(unittest.TestCase):
                 elif name == 'archive-test-source':
                     Path(next(a.split('=', 1)[1] for a in argv if a.startswith('--output='))).write_bytes(b'fixture')
                 elif name.startswith('resolve-'):
+                    self.assertNotIn('--no-build-isolation', argv)
+                    self.assertTrue(Path(env['UV_BUILD_CONSTRAINT']).is_file())
                     lock(Path(argv[argv.index('-o') + 1]), {'packaging': version, 'cffi': cffi['release']})
                 elif name == 'build':
                     build_commands.append(argv)
@@ -422,6 +424,8 @@ class PreparedWheelTests(unittest.TestCase):
             if override:
                 self.assertNotIn(provider_wheel.as_uri(), (root / 'tested/runtime-test.in').read_text())
                 self.assertIn(provider_wheel.as_uri(), (root / 'tested/dependency-overrides.txt').read_text())
+                self.assertIn(provider_wheel.as_uri(), (root / 'tested/build-constraints.txt').read_text())
+                self.assertNotIn('cffi==', (root / 'tested/build-constraints.txt').read_text())
                 self.assertIn(recipes['cffi']['sdist_sha256'], (pool / 'packaging/dependency-overrides.txt').read_text())
                 for execution in (prepared, tested):
                     resolves = [p for p in execution['phases'] if p['name'].startswith('resolve-')]
