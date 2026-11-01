@@ -95,12 +95,14 @@ linux = ["gfortran", "libopenblas-dev"]
 macos = ["openblas"]
 
 [cffi]
-version = "2.1.1"
-sdist_url = "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz"
-sdist_sha256 = "dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be"
+# Pin the CPython 3.16 build fix (python-cffi/cffi#287).
+source = "sdist"
+version = "2.2.0.dev0"
+sdist_url = "https://github.com/python-cffi/cffi/archive/1285f4647de0d96dba770725af033255760035b9.tar.gz"
+sdist_sha256 = "1e030860a680f991545abc4a6326326e15e3cb08276ef6da6e71dcc9d419830f"
 repository = "https://github.com/python-cffi/cffi"
-commit = "fd33e7700f0ebafe6f30bd5053f13327221b77a2"
-tag = "v{version}"
+commit = "1285f4647de0d96dba770725af033255760035b9"
+tag = ""
 module = "cffi"
 tests = "testing"
 dependencies = ["pytest", "setuptools", "pygments"]
