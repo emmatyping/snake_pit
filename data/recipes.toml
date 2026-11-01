@@ -321,7 +321,7 @@ dependencies = ["pytest"]
 
 [psutil]
 dependency_overrides = ["cffi"]
-pytest_args = ["-o", "addopts="]
+pytest_args = ["-o", "addopts=", "-o", "verbosity_subtests=auto"]
 version = "7.2.2"
 sdist_url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz"
 sdist_sha256 = "0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"
