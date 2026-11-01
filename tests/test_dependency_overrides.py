@@ -1,4 +1,5 @@
 import hashlib
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,6 +15,47 @@ from snake_pit.models import Project, ProjectResult
 
 
 class OverrideTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('uv'), 'uv is required for isolated build integration')
+    def test_isolated_build_uses_constrained_build_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            helper = root / 'fixture_build_helper-2.0-py3-none-any.whl'
+            with zipfile.ZipFile(helper, 'w') as archive:
+                info = 'fixture_build_helper-2.0.dist-info/'
+                archive.writestr(info + 'METADATA', 'Metadata-Version: 2.3\nName: fixture-build-helper\nVersion: 2.0\n')
+                archive.writestr(info + 'WHEEL', 'Wheel-Version: 1.0\nTag: py3-none-any\n')
+                archive.writestr(info + 'RECORD', '')
+                archive.writestr('fixture_build_helper.py', 'VALUE = "pinned isolated dependency"\n')
+            constraints = root / 'build-constraints.txt'
+            constraints.write_text(f'fixture-build-helper @ {helper.as_uri()}\n')
+            source = root / 'source'
+            source.mkdir()
+            (source / 'pyproject.toml').write_text(
+                '[build-system]\nrequires=["fixture-build-helper>=1"]\n'
+                'build-backend="backend"\nbackend-path=["."]\n'
+                '[project]\nname="isolation-fixture"\nversion="1.0"\n')
+            (source / 'backend.py').write_text('''from pathlib import Path
+import zipfile
+from fixture_build_helper import VALUE
+
+def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
+    assert VALUE == "pinned isolated dependency"
+    name = "isolation_fixture-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(Path(wheel_directory) / name, "w") as archive:
+        info = "isolation_fixture-1.0.dist-info/"
+        archive.writestr(info + "METADATA", "Metadata-Version: 2.3\\nName: isolation-fixture\\nVersion: 1.0\\n")
+        archive.writestr(info + "WHEEL", "Wheel-Version: 1.0\\nTag: py3-none-any\\n")
+        archive.writestr(info + "RECORD", "")
+    return name
+''')
+            env = dict(os.environ, UV_BUILD_CONSTRAINT=str(constraints))
+            env.pop('UV_NO_BUILD_ISOLATION', None)
+            subprocess.run(['uv', 'build', '--wheel', '--python', sys.executable,
+                            '--no-index', '--offline', '--no-config', '--no-python-downloads',
+                            '--cache-dir', str(root / 'cache'), '--out-dir', str(root / 'dist'), str(source)],
+                           env=env, check=True, capture_output=True, text=True)
+            self.assertEqual(len(list((root / 'dist').glob('*.whl'))), 1)
+
     def test_catalog_overrides_cffi_for_every_consumer_but_not_itself(self) -> None:
         for name, recipe in load_recipes().items():
             with self.subTest(project=name):
