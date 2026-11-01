@@ -458,8 +458,10 @@ sdist_sha256 = "ce1f1d900948d57d7db5b5d8d81f4ebfcb798eff674493503ce5bfaafcea84dc
 commit = "f70db8143c7601ca55b4b219e50577a3f06e38ea"
 
 [matplotlib]
-# Prepared NumPy wheels link against the worker OpenBLAS library.
-linux = ["libopenblas-dev"]
+# NumPy needs OpenBLAS; standalone runs also build the pinned Pillow source.
+linux = ["libopenblas-dev", "libjpeg-dev", "zlib1g-dev"]
+windows = ["libjpeg-turbo", "zlib"]
+macos = ["jpeg-turbo"]
 dependency_overrides = ["cffi", "pillow"]
 # Include upstream test data in the wheel for installed transformation tests.
 build_config_settings = ["install-args=--tags=data,python-runtime,runtime,tests"]
