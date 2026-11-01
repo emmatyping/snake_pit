@@ -396,7 +396,7 @@ commit = "b3b696fe2122f2339d782517559bfade2cb6b879"
 tag = "{version}"
 module = "pip"
 tests = "tests/unit"
-dependencies = ["pytest", "pytest-xdist", "pytest-rerunfailures", "pretend", "freezegun", "scripttest", "virtualenv", "installer", "build", "wheel", "setuptools", "werkzeug", "requests", "trustme"]
+dependencies = ["pytest", "pytest-xdist", "pytest-rerunfailures", "pretend", "freezegun", "scripttest", "virtualenv", "installer", "build", "wheel", "setuptools", "werkzeug", "requests", "trustme", "pytest-socket"]
 
 [cython]
 dependency_overrides = ["cffi"]
