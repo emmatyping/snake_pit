@@ -393,6 +393,8 @@ tests = "tests/test_api.py"
 dependencies = ["pytest", "pytest-xdist", "hypothesis", "flaky", "unittest-mixins"]
 
 [pip]
+# Unit tests create local Git commits on disposable workers.
+test_env = { GIT_AUTHOR_NAME = "snake-pit tests", GIT_AUTHOR_EMAIL = "tests@example.invalid", GIT_COMMITTER_NAME = "snake-pit tests", GIT_COMMITTER_EMAIL = "tests@example.invalid" }
 dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
