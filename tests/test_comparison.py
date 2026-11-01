@@ -359,6 +359,12 @@ class PreparedWheelTests(unittest.TestCase):
                 verified_wheel(root, value)
 
     def test_prepared_runner_reuses_wheel_and_keeps_test_failure_separate(self) -> None:
+        self.check_prepared_runner(False)
+
+    def test_override_applies_to_all_resolutions_and_reuses_prepared_provider(self) -> None:
+        self.check_prepared_runner(True)
+
+    def check_prepared_runner(self, override: bool) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             source = root / 'source'
@@ -393,7 +399,11 @@ class PreparedWheelTests(unittest.TestCase):
                 path.write_bytes(archive.read_bytes())
 
             import contextlib
+            recipes = load_recipes()
+            if override:
+                recipes['packaging']['dependency_overrides'] = ['cffi']
             with patch('snake_pit.project.restore', return_value=Path(sys.executable)), \
+                    patch('snake_pit.project.load_recipes', return_value=recipes), \
                     patch('snake_pit.project.dependencies'), patch('snake_pit.project.download', side_effect=download), \
                     patch('snake_pit.project.shutil.which', return_value='uv'), \
                     patch('snake_pit.project.subprocess.check_output', return_value=load_recipes()['packaging']['commit']), \
@@ -407,7 +417,17 @@ class PreparedWheelTests(unittest.TestCase):
             self.assertEqual(len(build_commands), 1)
             self.assertEqual(tested['status'], 'failed')
             self.assertEqual(tested['build_status'], 'passed')
-            self.assertIn(provider_wheel.as_uri(), (root / 'tested/runtime-test.in').read_text())
+            if override:
+                self.assertNotIn(provider_wheel.as_uri(), (root / 'tested/runtime-test.in').read_text())
+                self.assertIn(provider_wheel.as_uri(), (root / 'tested/dependency-overrides.txt').read_text())
+                self.assertIn(recipes['cffi']['sdist_sha256'], (pool / 'packaging/dependency-overrides.txt').read_text())
+                for execution in (prepared, tested):
+                    resolves = [p for p in execution['phases'] if p['name'].startswith('resolve-')]
+                    self.assertEqual(len(resolves), 4)
+                    for resolve_phase in resolves:
+                        self.assertIn('--override', resolve_phase['argv'])
+            else:
+                self.assertIn(provider_wheel.as_uri(), (root / 'tested/runtime-test.in').read_text())
             self.assertIn('cffi==' + cffi['release'], (root / 'tested/pylock.toml.constraints.txt').read_text())
             self.assertEqual(tested['artifacts'][next((root / 'tested/wheels').iterdir()).name],
                              prepared['artifacts'][next((pool / 'packaging/wheels').iterdir()).name])

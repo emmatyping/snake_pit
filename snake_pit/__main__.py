@@ -61,6 +61,7 @@ def main() -> int:
     requirements.add_argument('--no-test-dependencies', action='store_true', help='No additional test requirements')
     for flag, destination, description in (
         ('build-dependency', 'build_dependencies', 'Build requirement (repeatable)'),
+        ('dependency-override', 'dependency_overrides', 'Use a catalog recipe as a dependency override (repeatable)'),
         ('linux', 'linux', 'apt package (repeatable)'),
         ('macos', 'macos', 'Homebrew formula (repeatable)'),
         ('windows', 'windows', 'vcpkg package (repeatable)'),

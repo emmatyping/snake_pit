@@ -14,7 +14,7 @@ import urllib.request
 
 from .__main__ import ROOT, load_platforms, plan
 from .actions import dependencies, restore
-from .artifacts import locked_versions, read_results, verified_wheel, wheel_requirements
+from .artifacts import locked_versions, override_requirements, read_results, verified_wheel, wheel_requirements
 from .dependencies import load_projects, load_recipes
 from .models import Phase, PhaseResult, Project, ProjectResult
 from .modes import DEFAULT_MODE, MODES, parse_mode
@@ -171,18 +171,27 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
                 raise ValueError('prepared source wheel recipe mismatch')
             result['build_status'] = 'passed'
         reference = own_prepared[0] if own_prepared is not None else baseline_root
+        override_names = recipe.get('dependency_overrides', [])
+        overrides = override_requirements(override_names, load_projects(), prepared, result['recipe_sha256'])
+        override_options: list[str] = []
+        if overrides:
+            override_file = output / 'dependency-overrides.txt'
+            override_file.write_text('\n'.join(overrides) + '\n')
+            override_options = ['--override', str(override_file)]
 
         def compile_options(input_path: Path, lock_name: str) -> list[str]:
             versions = locked_versions(reference / lock_name) if reference is not None else {}
             if not versions:
-                return []
-            wheels = wheel_requirements(prepared, versions, project_name, result['recipe_sha256'])
+                return override_options
+            # Overrides select their own source without adding an otherwise unused dependency.
+            reusable = {name: value for name, value in prepared.items() if name not in override_names}
+            wheels = wheel_requirements(reusable, versions, project_name, result['recipe_sha256'])
             if wheels:
                 with input_path.open('a') as stream:
                     stream.write('\n'.join(wheels) + '\n')
             constraints = output / (lock_name + '.constraints.txt')
             constraints.write_text(''.join(f'{name}=={version}\n' for name, version in sorted(versions.items())))
-            return ['--constraint', str(constraints)]
+            return [*override_options, '--constraint', str(constraints)]
 
         current_stage = 'restore'
         python = restore(artifact, ROOT / 'cpython', commit, platform, mode)

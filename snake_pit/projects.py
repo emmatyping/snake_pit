@@ -17,7 +17,7 @@ from .artifacts import normalize
 from .dependencies import RECIPES
 from .models import Recipe
 
-LIST_FIELDS = ('dependencies', 'build_dependencies', 'linux', 'macos', 'windows', 'selection', 'pytest_args', 'exclude_platforms')
+LIST_FIELDS = ('dependencies', 'build_dependencies', 'dependency_overrides', 'linux', 'macos', 'windows', 'selection', 'pytest_args', 'exclude_platforms')
 
 
 def package_name(value: str) -> str:

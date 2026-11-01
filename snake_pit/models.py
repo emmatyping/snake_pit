@@ -28,6 +28,7 @@ class Recipe(TypedDict):
     tests: str
     dependencies: list[str]
     build_dependencies: NotRequired[list[str]]
+    dependency_overrides: NotRequired[list[str]]
     import_mode: NotRequired[str]
     pytest_args: NotRequired[list[str]]
     test_env: NotRequired[dict[str, str]]
