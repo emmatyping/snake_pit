@@ -402,6 +402,8 @@ class PreparedWheelTests(unittest.TestCase):
             recipes = load_recipes()
             if override:
                 recipes['packaging']['dependency_overrides'] = ['cffi']
+            else:
+                recipes['packaging'].pop('dependency_overrides', None)
             with patch('snake_pit.project.restore', return_value=Path(sys.executable)), \
                     patch('snake_pit.project.load_recipes', return_value=recipes), \
                     patch('snake_pit.project.dependencies'), patch('snake_pit.project.download', side_effect=download), \

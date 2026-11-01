@@ -97,6 +97,8 @@ The override only takes effect when the dependency is needed; it does not add it
 to unrelated environments. It replaces upstream version requirements, so use it
 deliberately when testing unreleased fixes. Baseline version constraints still
 apply. Updating a provider recipe alone does not override its consumers.
+The current catalog enables the cffi override in every recipe except cffi itself,
+covering direct and transitive consumers without installing cffi where it is unused.
 
 ## Comparable dependency inputs
 

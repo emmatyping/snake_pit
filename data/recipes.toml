@@ -4,6 +4,8 @@
 # against the commit pins below; runs verify their identity again before tests.
 
 [urllib3]
+# Use the pinned cffi source whenever it is a direct or transitive dependency.
+dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "2.8.0"
@@ -17,6 +19,7 @@ tests = "test"
 dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "trustme", "PySocks", "python-dateutil"]
 
 [httpx]
+dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "0.28.1"
@@ -30,6 +33,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-asyncio", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard"]
 
 [anyio]
+dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "4.15.1"
@@ -43,6 +47,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-mock", "pytest-timeout", "trustme", "trio", "psutil"]
 
 [jinja2]
+dependency_overrides = ["cffi"]
 version = "3.1.6"
 sdist_url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz"
 sdist_sha256 = "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"
@@ -54,6 +59,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-asyncio", "Babel", "trio"]
 
 [pytest]
+dependency_overrides = ["cffi"]
 # Exercise dependency fallbacks while keeping warnings visible in results.
 pytest_args = ["-W", "default"]
 import_mode = "prepend"
@@ -70,6 +76,7 @@ tests = "testing"
 dependencies = ["attrs", "hypothesis", "pygments", "requests", "xmlschema", "pexpect; sys_platform != 'win32'", "argcomplete", "mock"]
 
 [packaging]
+dependency_overrides = ["cffi"]
 version = "26.3"
 sdist_url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz"
 sdist_sha256 = "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"
@@ -81,6 +88,7 @@ tests = "tests"
 dependencies = ["pytest", "pretend", "hypothesis", "tomli-w"]
 
 [numpy]
+dependency_overrides = ["cffi"]
 version = "2.5.4"
 sdist_url = "https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz"
 sdist_sha256 = "9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a"
@@ -123,6 +131,7 @@ dependencies = ["pytest", "pytest-benchmark", "pytest-subtests", "pretend", "hyp
 linux = ["libssl-dev", "pkg-config"]
 
 [pydantic-core]
+dependency_overrides = ["cffi"]
 version = "2.50.1"
 sdist_url = "https://files.pythonhosted.org/packages/a6/24/af4ec4be49fbc810f35b0bdcacc3d433b56bbfa469fd3bfd4ae116cd9bf1/pydantic_core-2.50.1.tar.gz"
 sdist_sha256 = "e50d7b94baac6c7d09927fa5ca5800a0c7ee5015c7fcff65beb3a1931b5a6e09"
@@ -136,6 +145,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-mock", "hypothesis", "dirty-equals", "inline-snapshot", "pytest-timeout", "pytest-benchmark", "pytest-examples", "pytest-run-parallel", "typing-inspection", "pydantic"]
 
 [requests]
+dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "2.34.2"
@@ -149,6 +159,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-httpbin", "trustme", "PySocks", "pytest-mock"]
 
 [trio]
+dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "0.34.0"
@@ -162,6 +173,7 @@ tests = "src/trio/_tests"
 dependencies = ["pytest", "pytest-trio", "hypothesis", "trustme"]
 
 [websockets]
+dependency_overrides = ["cffi"]
 version = "17.3"
 sdist_url = "https://files.pythonhosted.org/packages/30/4b/4692be6d5bf739ed049b3813901c42091f8c054df89d5c089343823dea0d/websockets-17.3.tar.gz"
 sdist_sha256 = "1c7dd93a1c9f89297471493674b1fc1d9467cafd45374f2172213046bdb3a329"
@@ -173,6 +185,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-asyncio", "trio"]
 
 [django]
+dependency_overrides = ["cffi"]
 version = "6.1.2"
 sdist_url = "https://files.pythonhosted.org/packages/89/24/20d187a22ac821288b53c53b8f696019dcb0c7b4f973f052ade19392c74d/django-6.1.2.tar.gz"
 sdist_sha256 = "a1e92451ccb8b514e91bbb3b6d186d20b4030558f116b5d9de6535455ff210b7"
@@ -191,6 +204,7 @@ macos = ["jpeg-turbo"]
 dependencies = ["pytest", "jinja2", "PyYAML", "pillow"]
 
 [sqlalchemy]
+dependency_overrides = ["cffi"]
 version = "2.1.6"
 sdist_url = "https://files.pythonhosted.org/packages/36/dc/9addbf490110b5727380059ee542ad8353bdcee45a37ba6a5e0976966ae0/sqlalchemy-2.1.6.tar.gz"
 sdist_sha256 = "499eae5c9051efe96cb9a73ec2fbde8ffa4186f102b9094ebab8fcc9d3b99f52"
@@ -202,6 +216,7 @@ tests = "test"
 dependencies = ["pytest", "pytest-xdist", "greenlet", "aiosqlite", "mypy"]
 
 [hypothesis]
+dependency_overrides = ["cffi"]
 version = "6.170.5"
 sdist_url = "https://files.pythonhosted.org/packages/90/a4/49ae9a9a23523490b1bbd39114dcb900ac24cc5a4197b47787a4cccf7708/hypothesis-6.170.5.tar.gz"
 sdist_sha256 = "b147f57c7903bda934d9f6ee6df462006e0c70a69b25a55e99663671666b249d"
@@ -213,6 +228,7 @@ tests = "hypothesis/tests/cover"
 dependencies = ["pytest", "attrs", "pexpect; sys_platform != 'win32'", "python-dateutil", "pytz", "syrupy"]
 
 [click]
+dependency_overrides = ["cffi"]
 import_mode = "prepend"
 version = "8.5.0"
 sdist_url = "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz"
@@ -225,6 +241,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-mock"]
 
 [pyyaml]
+dependency_overrides = ["cffi"]
 import_mode = "prepend"
 version = "6.0.3"
 sdist_url = "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz"
@@ -239,6 +256,7 @@ linux = ["libyaml-dev"]
 macos = ["libyaml"]
 
 [pandas]
+dependency_overrides = ["cffi"]
 # dateutil 3 changed timezone internals used by this pandas release.
 build_dependencies = ["meson-python", "Cython", "ninja"]
 version = "3.0.6"
@@ -253,6 +271,7 @@ installed = true
 dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil<3", "pytz", "tzdata"]
 
 [pillow]
+dependency_overrides = ["cffi"]
 windows = ["libjpeg-turbo", "zlib"]
 import_mode = "prepend"
 version = "13.0.0"
@@ -268,6 +287,7 @@ linux = ["libjpeg-dev", "zlib1g-dev", "libtiff-dev", "libwebp-dev", "liblcms2-de
 macos = ["jpeg-turbo", "libtiff", "webp", "little-cms2", "freetype"]
 
 [lxml]
+dependency_overrides = ["cffi"]
 version = "6.1.3"
 sdist_url = "https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz"
 sdist_sha256 = "45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21"
@@ -282,6 +302,7 @@ linux = ["libxml2-dev", "libxslt1-dev"]
 macos = ["libxml2", "libxslt"]
 
 [msgpack]
+dependency_overrides = ["cffi"]
 version = "1.2.3"
 sdist_url = "https://files.pythonhosted.org/packages/0a/e7/bb605a7bab2d8425a64b3fa762b39dc1bf1c7e3f11ba6fb5413d6db0ff8c/msgpack-1.2.3.tar.gz"
 sdist_sha256 = "32edb81a2b5eb7cd7c9d941b2bfbbb082fd2cd09e0e725930316af6b708db186"
@@ -293,6 +314,7 @@ tests = "test"
 dependencies = ["pytest"]
 
 [psutil]
+dependency_overrides = ["cffi"]
 pytest_args = ["-o", "addopts="]
 version = "7.2.2"
 sdist_url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz"
@@ -305,6 +327,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-xdist", "psutil[test]=={version}"]
 
 [orjson]
+dependency_overrides = ["cffi"]
 build_dependencies = ["meson-python", "Cython", "ninja"]
 version = "3.13.0"
 sdist_url = "https://files.pythonhosted.org/packages/f2/72/380b97dc45bd162d23afe5194721ef678d9eac7cfaa549fe2873f7f0a518/orjson-3.13.0.tar.gz"
@@ -317,6 +340,7 @@ tests = "test"
 dependencies = ["pytest", "numpy", "pytz"]
 
 [greenlet]
+dependency_overrides = ["cffi"]
 version = "3.5.6"
 sdist_url = "https://files.pythonhosted.org/packages/3e/6e/0091f175ccd02b02bc8811bbcbcc6ac2e980be116e3b2f7a736ca322bf84/greenlet-3.5.6.tar.gz"
 sdist_sha256 = "8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575"
@@ -329,6 +353,7 @@ installed = true
 dependencies = ["pytest", "psutil", "objgraph"]
 
 [uvloop]
+dependency_overrides = ["cffi"]
 exclude_platforms = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
@@ -343,6 +368,7 @@ tests = "tests"
 dependencies = ["pytest", "psutil", "aiohttp", "six", "pyOpenSSL"]
 
 [coverage]
+dependency_overrides = ["cffi"]
 version = "7.16.2"
 sdist_url = "https://files.pythonhosted.org/packages/2f/55/d1eaf3e73781174340a00dc1ba2aee8a65f82fadb18e2797b192b6b3925b/coverage-7.16.2.tar.gz"
 sdist_sha256 = "ca64d9f1f384f151b9511bec01126072acd2f313439f8ed015a22d8790aab6fa"
@@ -354,6 +380,7 @@ tests = "tests/test_api.py"
 dependencies = ["pytest", "pytest-xdist", "hypothesis", "flaky", "unittest-mixins"]
 
 [pip]
+dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
 version = "26.2.2"
@@ -367,6 +394,7 @@ tests = "tests/unit"
 dependencies = ["pytest", "pytest-xdist", "pytest-rerunfailures", "pretend", "freezegun", "scripttest", "virtualenv", "installer", "build", "wheel", "setuptools", "werkzeug", "requests", "trustme"]
 
 [cython]
+dependency_overrides = ["cffi"]
 # Selected native C/C++ compilation and runtime cases, including async and buffers.
 repository = "https://github.com/cython/cython"
 tag = "{version}"
@@ -382,6 +410,7 @@ sdist_sha256 = "eed0d93fbca7087f143b42c34b05a825849bdf17f101572c2105acfa49aa88b8
 commit = "bcd04a2966842d80de6ecff4e68e8d892bec5ef7"
 
 [sympy]
+dependency_overrides = ["cffi"]
 # Bound expensive symbolic computation to the upstream core suite.
 repository = "https://github.com/sympy/sympy"
 tag = "sympy-{version}"
@@ -396,6 +425,7 @@ sdist_sha256 = "d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517
 commit = "16fa855354eb7bcabd3fe10993841e03b1382692"
 
 [memray]
+dependency_overrides = ["cffi"]
 # Unit tests exercise the installed native tracking helpers; Windows is unsupported.
 repository = "https://github.com/bloomberg/memray"
 tag = "v{version}"
@@ -413,6 +443,7 @@ sdist_sha256 = "ce1f1d900948d57d7db5b5d8d81f4ebfcb798eff674493503ce5bfaafcea84dc
 commit = "f70db8143c7601ca55b4b219e50577a3f06e38ea"
 
 [matplotlib]
+dependency_overrides = ["cffi"]
 # Headless installed transformation tests; omit baseline-image comparisons.
 repository = "https://github.com/matplotlib/matplotlib"
 tag = "v{version}"
@@ -430,6 +461,7 @@ sdist_sha256 = "cec596316640f2b394b8f0daa0ea61a8eae82d017b620b9f202befb972a59ea4
 commit = "d3ca9172e392048ec242b90e8423e88d1a3000b2"
 
 [sphinx]
+dependency_overrides = ["cffi"]
 # Selected HTML-builder regression tests with the upstream Sphinx fixtures.
 repository = "https://github.com/sphinx-doc/sphinx"
 tag = "v{version}"

@@ -9,10 +9,16 @@ from unittest.mock import patch
 import zipfile
 
 from snake_pit.artifacts import override_requirements
+from snake_pit.dependencies import load_recipes
 from snake_pit.models import Project, ProjectResult
 
 
 class OverrideTests(unittest.TestCase):
+    def test_catalog_overrides_cffi_for_every_consumer_but_not_itself(self) -> None:
+        for name, recipe in load_recipes().items():
+            with self.subTest(project=name):
+                self.assertEqual('cffi' in recipe.get('dependency_overrides', []), name != 'cffi')
+
     def project(self) -> Project:
         return dict(name='cffi', release='2.2.0.dev0',
                     sdist=dict(filename='commit.tar.gz', url='https://example.invalid/commit.tar.gz',

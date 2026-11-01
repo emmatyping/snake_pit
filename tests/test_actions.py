@@ -268,7 +268,7 @@ class ActionsTests(unittest.TestCase):
                     wheels.mkdir()
                     (wheels / 'fixture.whl').write_text('trusted fixture')
                 elif phase['name'] in ('resolve-tools', 'resolve-backends', 'resolve-build', 'resolve-tests'):
-                    Path(argv[-1]).write_text('lock-version="1.0"\npackages=[]\n')
+                    Path(argv[argv.index('-o') + 1]).write_text('lock-version="1.0"\npackages=[]\n')
                 return {'name': phase['name'], 'argv': argv,
                         'status': 'failed' if phase['name'] == 'collect' else 'passed', 'returncode': 5}
 
