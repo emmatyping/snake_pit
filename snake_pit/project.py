@@ -238,6 +238,11 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
                             shutil.copyfile(libraries / candidate, libraries / alias)
                             break
             env['LIB'] = str(libraries) + ';' + env.get('LIB', '')
+            if 'openssl' in recipe['windows']:
+                # openssl-sys cannot discover our custom vcpkg triplet automatically.
+                # Select the matching CRT/build-mode libraries and link them statically.
+                env.update(OPENSSL_DIR=str(prefix), OPENSSL_INCLUDE_DIR=str(prefix / 'include'),
+                           OPENSSL_LIB_DIR=str(libraries), OPENSSL_STATIC='1')
         if platform == 'i686-pc-windows-msvc':
             stage('rust-target', ['rustup', 'target', 'add', 'i686-pc-windows-msvc'])
             env['CARGO_BUILD_TARGET'] = 'i686-pc-windows-msvc'

@@ -295,6 +295,56 @@ class ActionsTests(unittest.TestCase):
             self.assertIn('meson-python>=0.15', backends)
             self.assertNotIn('numpy', backends)
 
+    def test_windows_openssl_is_available_to_build_dependency_resolution(self) -> None:
+        for mode in ('release', 'debug'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve()
+                work = root / 'work'
+                source = root / 'source'
+                source.mkdir()
+                (source / 'pyproject.toml').write_text('[build-system]\nrequires=["setuptools"]\n')
+                archive = root / 'source.tar.gz'
+                with tarfile.open(archive, 'w:gz') as tar:
+                    tar.add(source, arcname='source')
+
+                def download_fixture(project: object, destination: Path) -> None:
+                    destination.write_bytes(archive.read_bytes())
+
+                def phase_fixture(phase: Phase, cwd: Path, logs: Path, env: dict[str, str]) -> PhaseResult:
+                    if phase['name'] == 'native-dependencies':
+                        self.assertIn('openssl', phase['argv'])
+                        triplet = (work / 'triplets/x64-snake-pit.cmake').read_text()
+                        self.assertIn('VCPKG_CRT_LINKAGE dynamic', triplet)
+                        self.assertIn('VCPKG_LIBRARY_LINKAGE static', triplet)
+                        self.assertIn(f'VCPKG_BUILD_TYPE {mode}', triplet)
+                    if phase['name'] == 'resolve-tools':
+                        prefix = work / 'native/x64-snake-pit'
+                        self.assertEqual(env['OPENSSL_DIR'], str(prefix))
+                        self.assertEqual(env['OPENSSL_INCLUDE_DIR'], str(prefix / 'include'))
+                        self.assertEqual(env['OPENSSL_LIB_DIR'], str(prefix / ('debug/lib' if mode == 'debug' else 'lib')))
+                        self.assertEqual(env['OPENSSL_STATIC'], '1')
+                    return dict(name=phase['name'], argv=phase['argv'],
+                                status='failed' if phase['name'] == 'resolve-tools' else 'passed')
+
+                with patch('snake_pit.project.restore', return_value=Path(sys.executable)), \
+                        patch('snake_pit.project.dependencies'), patch('snake_pit.project.windows_compiler_environment'), \
+                        patch('snake_pit.project.download', download_fixture), \
+                        patch('snake_pit.project.shutil.which', return_value='uv'), \
+                        patch('snake_pit.project.run_phase', side_effect=phase_fixture), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    result = run_project('cryptography', 'a' * 40, 'x86_64-pc-windows-msvc', mode,
+                                         root / 'artifact', work, root / 'results', build_only=True)
+                self.assertEqual(result['failed_phase'], 'resolve-tools')
+
+    def test_cryptography_windows_x86_is_not_applicable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch('snake_pit.project.restore') as restore:
+                result = run_project('cryptography', 'a' * 40, 'i686-pc-windows-msvc', 'release',
+                                     root / 'artifact', root / 'work', root / 'results')
+            self.assertEqual(result['status'], 'not-applicable')
+            restore.assert_not_called()
+
     def test_unsupported_project_platform_pair_needs_no_build_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
