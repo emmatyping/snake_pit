@@ -186,7 +186,7 @@ commit = "86a1ad5b0009e801e451f1be1da2a077e2dd2471"
 tag = "{version}"
 module = "websockets"
 tests = "tests"
-dependencies = ["pytest", "pytest-asyncio", "trio"]
+dependencies = ["pytest", "trio"]
 
 [django]
 dependency_overrides = ["cffi", "pillow"]
