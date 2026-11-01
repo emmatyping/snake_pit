@@ -125,7 +125,7 @@ class ProjectManagementTests(unittest.TestCase):
             self.assertEqual(after[name], {**old, **metadata(name, '999.0'),
                                           **({'commit': 'd' * 40} if old.get('source') != 'sdist' else {})})
         self.assertIn(call(before['sqlalchemy']['repository'], 'rel_999_0'), tag.call_args_list)
-        self.assertEqual(tag.call_count, len(before) - 1)
+        self.assertEqual(tag.call_count, sum(recipe.get('source') != 'sdist' for recipe in before.values()))
 
     def test_batch_failure_and_dry_run_leave_the_file_untouched(self) -> None:
         self.path.write_bytes(RECIPES.read_bytes())

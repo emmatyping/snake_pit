@@ -7,7 +7,7 @@ import tomllib
 import zipfile
 from typing import cast
 
-from .models import ProjectResult
+from .models import Project, ProjectResult
 from .worker import sha256
 
 
@@ -65,4 +65,25 @@ def wheel_requirements(results: dict[str, tuple[Path, ProjectResult]], versions:
         if result.get('recipe_sha256') != recipe_hash:
             raise ValueError(f'prepared wheel recipe mismatch: {name}')
         requirements.append(verified_wheel(folder, result).as_uri())
+    return requirements
+
+
+def override_requirements(names: list[str], projects: list[Project],
+                          prepared: dict[str, tuple[Path, ProjectResult]],
+                          recipe_hash: str) -> list[str]:
+    """Select catalog sources, or verified wheels with the exact catalog identity."""
+    catalog = {project['name']: project for project in projects}
+    requirements = []
+    for name in names:
+        if name not in catalog:
+            raise ValueError(f'unknown dependency override: {name}')
+        project = catalog[name]
+        source = project['sdist']
+        url = source['url'].split('#', 1)[0] + '#sha256=' + source['sha256']
+        if name in prepared and prepared[name][1].get('build_status') == 'passed':
+            folder, result = prepared[name]
+            if result.get('recipe_sha256') != recipe_hash or result['release'] != project['release']:
+                raise ValueError(f'prepared dependency override mismatch: {name}')
+            url = verified_wheel(folder, result).as_uri()
+        requirements.append(f'{name} @ {url}')
     return requirements

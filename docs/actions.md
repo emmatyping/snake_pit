@@ -88,6 +88,18 @@ also compile build-backend dependencies before all provider wheels are available
 the scheduler prunes the later installation/test fan-out after the locks are known.
 Selecting a project subset also narrows the providers whose builds are probed.
 
+To force a consumer to use another catalog recipe's pinned source, set
+`dependency_overrides = ["cffi"]` in the consumer's recipe (for example,
+`[cryptography]`). This applies uv dependency overrides to every build and test
+resolution phase. It uses the catalog archive URL and SHA-256 during preparation,
+then a verified prepared wheel of that recipe's exact version when available.
+The override only takes effect when the dependency is needed; it does not add it
+to unrelated environments. It replaces upstream version requirements, so use it
+deliberately when testing unreleased fixes. Baseline version constraints still
+apply. Updating a provider recipe alone does not override its consumers.
+The current catalog enables the cffi override in every recipe except cffi itself,
+covering direct and transitive consumers without installing cffi where it is unused.
+
 ## Comparable dependency inputs
 
 Baseline preparation records `pylock.tools.toml`, `pylock.backends.toml`,
