@@ -31,7 +31,7 @@ commit = "26d48e0634e6ee9cdc0533996db289ce4b430177"
 tag = "{version}"
 module = "httpx"
 tests = "tests"
-dependencies = ["pytest", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard"]
+dependencies = ["pytest", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard", "chardet", "httpx[cli]=={version}"]
 
 [anyio]
 dependency_overrides = ["cffi"]
