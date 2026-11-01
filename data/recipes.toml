@@ -259,6 +259,7 @@ linux = ["libyaml-dev"]
 macos = ["libyaml"]
 
 [pandas]
+linux = ["libopenblas-dev"]
 dependency_overrides = ["cffi"]
 # dateutil 3 changed timezone internals used by this pandas release.
 build_dependencies = ["meson-python", "Cython", "ninja"]
