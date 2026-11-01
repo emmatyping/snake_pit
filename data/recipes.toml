@@ -438,7 +438,7 @@ module = "memray"
 tests = "tests/unit"
 dependencies = ["memray[test]=={version}"]
 build_dependencies = ["scikit-build-core>=0.9", "cython>=3.1", "cmake>=3.30", "ninja"]
-linux = ["liblz4-dev", "libunwind-dev", "pkg-config"]
+linux = ["liblz4-dev", "libunwind-dev", "pkg-config", "libdebuginfod-dev"]
 macos = ["lz4", "pkg-config"]
 exclude_platforms = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
 version = "1.20.0"
