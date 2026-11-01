@@ -4,6 +4,7 @@
 # against the commit pins below; runs verify their identity again before tests.
 
 [urllib3]
+pytest_args = ["-o", "pythonpath=."]
 # Use the pinned cffi source whenever it is a direct or transitive dependency.
 dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
@@ -16,7 +17,7 @@ commit = "b1d30ab61fe0db8f11092805e8c5ac43e091064a"
 tag = "{version}"
 module = "urllib3"
 tests = "test"
-dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "trustme", "PySocks", "python-dateutil"]
+dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "trustme", "PySocks", "python-dateutil", "anyio[trio]>=4.8.0", "h2>=4.1.0", "httpx>=0.28.1", "hypercorn>=0.15.0", "pytest-socket>=0.7.0", "quart>=0.20.0", "quart-trio>=0.12.0", "trio>=0.27.0"]
 
 [httpx]
 dependency_overrides = ["cffi"]
