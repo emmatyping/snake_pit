@@ -280,6 +280,8 @@ installed = true
 dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil<3", "pytz", "tzdata"]
 
 [pillow]
+# Report native test hangs promptly with the active test and thread stacks.
+pytest_args = ["-vv", "--timeout=120"]
 source = "sdist"
 dependency_overrides = ["cffi"]
 windows = ["libjpeg-turbo", "zlib"]
