@@ -455,16 +455,15 @@ commit = "f70db8143c7601ca55b4b219e50577a3f06e38ea"
 
 [matplotlib]
 dependency_overrides = ["cffi", "pillow"]
-# Headless installed transformation tests; omit baseline-image comparisons.
+# Use checkout test data with the installed library; wheels omit baseline_images.
 repository = "https://github.com/matplotlib/matplotlib"
 tag = "v{version}"
 source = "git"
 module = "matplotlib"
-tests = "tests/test_transforms.py"
+tests = "lib/matplotlib/tests/test_transforms.py"
 dependencies = ["pytest", "pytest-rerunfailures!=16.0", "pytest-timeout", "pytest-cov"]
 build_dependencies = ["meson", "ninja"]
 pytest_args = ["-m", "not baseline_images"]
-installed = true
 test_env = { "MPLBACKEND" = "Agg" }
 version = "3.11.2"
 sdist_url = "https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz"
