@@ -57,7 +57,7 @@ commit = "15206881c006c79667fe5154fe80c01c65410679"
 tag = "{version}"
 module = "jinja2"
 tests = "tests"
-dependencies = ["pytest", "pytest-asyncio", "Babel", "trio"]
+dependencies = ["pytest", "Babel", "trio"]
 
 [pytest]
 dependency_overrides = ["cffi"]
