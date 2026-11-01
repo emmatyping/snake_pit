@@ -90,6 +90,8 @@ def windows_lxml_environment(prefix: Path, libraries: Path, env: dict[str, str])
         shutil.copyfile(source, libraries / alias)
     env.update(STATIC='true', STATIC_DEPS='false', LIBRARY=str(libraries),
                CFLAGS='/DLIBXML_STATIC /DLIBXSLT_STATIC /DLIBEXSLT_STATIC')
+    # Static libxml2 uses BCryptGenRandom; lxml's library list predates that dependency.
+    env['LINK'] = (env.get('LINK', '') + ' bcrypt.lib').strip()
     env['INCLUDE'] = str(prefix / 'include/libxml2') + ';' + env.get('INCLUDE', '')
 
 

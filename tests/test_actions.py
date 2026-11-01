@@ -37,6 +37,7 @@ class ActionsTests(unittest.TestCase):
                 self.assertEqual(env['LIBRARY'], str(libraries))
                 self.assertTrue(env['INCLUDE'].endswith(';existing-headers'))
                 self.assertIn('/DLIBXML_STATIC', env['CFLAGS'])
+                self.assertIn('bcrypt.lib', env['LINK'].split())
                 (libraries / f'iconv{suffix}.lib').unlink()
                 with self.assertRaisesRegex(ValueError, 'missing native lxml library: iconv_a.lib'):
                     windows_lxml_environment(prefix, libraries, env)
