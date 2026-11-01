@@ -216,7 +216,7 @@ class ProjectManagementTests(unittest.TestCase):
     def test_cli_exposes_recipe_fields_and_update_all(self) -> None:
         argv = ['snake_pit', 'add', 'other', '--recipes', str(self.path), '--repository', 'https://github.com/example/other',
                 '--tag', '{version}', '--module', 'other', '--tests', 'test', '--dependency', 'pytest',
-                '--build-dependency', 'maturin', '--linux', 'libffi-dev', '--macos', 'libffi', '--windows', 'libffi',
+                '--build-dependency', 'maturin', '--build-config-setting', 'install-args=--tags=tests', '--linux', 'libffi-dev', '--macos', 'libffi', '--windows', 'libffi',
                 '--installed', '--import-mode', 'prepend', '--pytest-arg=-W', '--pytest-arg=default', '--test-env', 'FLAG=']
         with patch.object(sys, 'argv', argv), contextlib.redirect_stdout(io.StringIO()), \
                 patch('snake_pit.projects.release', return_value=metadata('other')), \
@@ -225,6 +225,7 @@ class ProjectManagementTests(unittest.TestCase):
         recipe = load_recipes(self.path)['other']
         self.assertEqual(recipe['test_env'], {'FLAG': ''})
         self.assertEqual(recipe['build_dependencies'], ['maturin'])
+        self.assertEqual(recipe['build_config_settings'], ['install-args=--tags=tests'])
         self.assertEqual(recipe['pytest_args'], ['-W', 'default'])
         self.assertTrue(recipe['installed'])
         with patch.object(sys, 'argv', ['snake_pit', 'update']), contextlib.redirect_stdout(io.StringIO()), \
