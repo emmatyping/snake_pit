@@ -194,6 +194,9 @@ transformation tests with the Agg backend, excluding baseline-image comparisons.
 Cryptography excludes 32-bit Windows, which upstream stopped supporting in 49.0.0.
 On 64-bit Windows its recipe builds static OpenSSL through vcpkg and explicitly
 points the Rust build at the matching headers and libraries.
+Lxml's Windows dependencies are also built through vcpkg with the active MSVC
+toolchain. Static library aliases and header paths replace upstream's prebuilt
+bundle, whose compiler-specific objects may be incompatible with hosted MSVC.
 Sphinx runs its HTML-builder suite with the upstream pytest fixtures.
 Cython uses its pinned upstream `runtests.py` with the installed compiler and a
 selection of native C/C++ cases covering containers, strings, exceptions, async

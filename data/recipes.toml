@@ -293,6 +293,7 @@ linux = ["libjpeg-dev", "zlib1g-dev", "libtiff-dev", "libwebp-dev", "liblcms2-de
 macos = ["jpeg-turbo", "libtiff", "webp", "little-cms2", "freetype"]
 
 [lxml]
+windows = ["libxml2[legacy]", "libxslt", "libiconv", "zlib"]
 dependency_overrides = ["cffi"]
 version = "6.1.3"
 sdist_url = "https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz"

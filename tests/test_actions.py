@@ -16,10 +16,31 @@ from snake_pit.actions import build, build_interpreter, interpreter, matrices, r
 from snake_pit.dependencies import load_projects, load_recipes
 from snake_pit.models import Phase, PhaseResult
 from snake_pit.modes import MODES, parse_mode
-from snake_pit.project import cython_command, environment, lxml_command, run_project, windows_compiler_environment
+from snake_pit.project import cython_command, environment, lxml_command, run_project, windows_compiler_environment, windows_lxml_environment
 
 
 class ActionsTests(unittest.TestCase):
+    def test_windows_lxml_uses_matching_local_static_libraries(self) -> None:
+        for suffix in ('', 'd'):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as directory:
+                prefix = Path(directory)
+                libraries = prefix / ('debug/lib' if suffix else 'lib')
+                libraries.mkdir(parents=True)
+                for name in ('libxml2', 'libxslt', 'libexslt', 'iconv'):
+                    (libraries / f'{name}{suffix}.lib').write_bytes(name.encode())
+                env = {'INCLUDE': 'existing-headers'}
+                windows_lxml_environment(prefix, libraries, env)
+                for name in ('libxml2', 'libxslt', 'libexslt', 'iconv'):
+                    self.assertEqual((libraries / f'{name}_a.lib').read_bytes(), name.encode())
+                self.assertEqual(env['STATIC_DEPS'], 'false')
+                self.assertEqual(env['STATIC'], 'true')
+                self.assertEqual(env['LIBRARY'], str(libraries))
+                self.assertTrue(env['INCLUDE'].endswith(';existing-headers'))
+                self.assertIn('/DLIBXML_STATIC', env['CFLAGS'])
+                (libraries / f'iconv{suffix}.lib').unlink()
+                with self.assertRaisesRegex(ValueError, 'missing native lxml library: iconv_a.lib'):
+                    windows_lxml_environment(prefix, libraries, env)
+
     def test_cython_adapter_uses_installed_compiler_and_merges_xml_even_on_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()

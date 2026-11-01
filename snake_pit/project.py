@@ -76,6 +76,23 @@ def windows_compiler_environment(platform: str, work: Path, env: dict[str, str])
     env.update(DISTUTILS_USE_SDK='1', MSSdk='1', CC='cl', CXX='cl')
 
 
+def windows_lxml_environment(prefix: Path, libraries: Path, env: dict[str, str]) -> None:
+    """Use locally built static libraries instead of lxml's prebuilt MSVC objects."""
+    for alias, candidates in {
+        'libxml2_a.lib': ('libxml2.lib', 'libxml2d.lib'),
+        'libxslt_a.lib': ('libxslt.lib', 'libxsltd.lib'),
+        'libexslt_a.lib': ('libexslt.lib', 'libexsltd.lib'),
+        'iconv_a.lib': ('iconv.lib', 'iconvd.lib', 'libiconv.lib', 'libiconvd.lib'),
+    }.items():
+        source = next((libraries / name for name in candidates if (libraries / name).is_file()), None)
+        if source is None:
+            raise ValueError(f'missing native lxml library: {alias}')
+        shutil.copyfile(source, libraries / alias)
+    env.update(STATIC='true', STATIC_DEPS='false', LIBRARY=str(libraries),
+               CFLAGS='/DLIBXML_STATIC /DLIBXSLT_STATIC /DLIBEXSLT_STATIC')
+    env['INCLUDE'] = str(prefix / 'include/libxml2') + ';' + env.get('INCLUDE', '')
+
+
 def lxml_command(python: Path, checkout: Path) -> list[str]:
     wrapper = ('import lxml, lxml.html, pathlib, runpy, sys; lxml.__path__.append(sys.argv[1]); '
                'lxml.html.__path__.append(str(pathlib.Path(sys.argv[1]) / "html")); '
@@ -202,10 +219,6 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         if 'windows' in platform:
             current_stage = 'compiler-environment'
             windows_compiler_environment(platform, work, env)
-            if recipe.get('adapter') == 'lxml':
-                # Use upstream's architecture-aware Windows dependency bundle,
-                # including matching static XML/XSLT/iconv/zlib libraries.
-                env['STATIC_DEPS'] = 'true'
         if 'linux' in platform and recipe.get('linux'):
             stage('native-dependencies', ['sudo', 'apt-get', 'install', '-y', *recipe['linux']])
         elif 'apple' in platform and recipe.get('macos'):
@@ -238,6 +251,8 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
                             shutil.copyfile(libraries / candidate, libraries / alias)
                             break
             env['LIB'] = str(libraries) + ';' + env.get('LIB', '')
+            if recipe.get('adapter') == 'lxml':
+                windows_lxml_environment(prefix, libraries, env)
             if 'openssl' in recipe['windows']:
                 # openssl-sys cannot discover our custom vcpkg triplet automatically.
                 # Select the matching CRT/build-mode libraries and link them statically.
