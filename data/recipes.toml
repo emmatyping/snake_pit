@@ -173,7 +173,7 @@ commit = "b3fd421ab1ac7830ed7440b85331e4ae2ccaaba9"
 tag = "v{version}"
 module = "trio"
 tests = "src/trio/_tests"
-dependencies = ["pytest", "pytest-trio", "hypothesis", "trustme"]
+dependencies = ["pytest", "pytest-trio", "hypothesis", "trustme", "pyOpenSSL", "astor", "PyYAML"]
 
 [websockets]
 dependency_overrides = ["cffi"]
