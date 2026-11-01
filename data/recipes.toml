@@ -45,7 +45,9 @@ commit = "0ddd02d6a44a68cfdf0210783c2a2a1b02334d9a"
 tag = "{version}"
 module = "anyio"
 tests = "tests"
-dependencies = ["pytest", "pytest-mock", "pytest-timeout", "trustme", "trio", "psutil"]
+dependencies = ["pytest", "pytest-mock", "pytest-timeout", "hypothesis", "trustme", "trio", "psutil"]
+# Worker processes import helpers from the checkout tests package.
+pytest_args = ["-o", "pythonpath=."]
 
 [jinja2]
 dependency_overrides = ["cffi"]
