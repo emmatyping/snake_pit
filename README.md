@@ -150,3 +150,8 @@ recipes are trusted configuration and must be reviewed.
 Recipe versions and source hashes identify releases and artifacts. Generated
 build/test locks capture each run's dependencies. Hash locking does not establish
 that a package is safe.
+
+Recipes can set `build_config_settings` to a list of PEP 517 `KEY=VALUE` settings
+for the project wheel build. For example, Matplotlib includes its Meson `tests`
+install tag so installed tests have their baseline data. These settings apply
+only to the project build, not its dependencies.

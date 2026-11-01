@@ -357,7 +357,9 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
         wheels = output / 'wheels'
         if own_prepared is None:
             stage('build', [uv, 'build', '--wheel', '--python', str(target),
-                             '--out-dir', str(wheels), str(sdist)])
+                             '--out-dir', str(wheels),
+                             *[arg for setting in recipe.get('build_config_settings', [])
+                               for arg in ('--config-setting', setting)], str(sdist)])
         else:
             wheel = verified_wheel(*own_prepared)
             wheels.mkdir()

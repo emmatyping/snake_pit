@@ -461,12 +461,14 @@ commit = "f70db8143c7601ca55b4b219e50577a3f06e38ea"
 # Prepared NumPy wheels link against the worker OpenBLAS library.
 linux = ["libopenblas-dev"]
 dependency_overrides = ["cffi", "pillow"]
-# Use checkout test data with the installed library; wheels omit baseline_images.
+# Include upstream test data in the wheel for installed transformation tests.
+build_config_settings = ["install-args=--tags=data,python-runtime,runtime,tests"]
+installed = true
 repository = "https://github.com/matplotlib/matplotlib"
 tag = "v{version}"
 source = "git"
 module = "matplotlib"
-tests = "lib/matplotlib/tests/test_transforms.py"
+tests = "tests/test_transforms.py"
 dependencies = ["pytest", "pytest-rerunfailures!=16.0", "pytest-timeout", "pytest-cov"]
 build_dependencies = ["meson", "ninja"]
 pytest_args = ["-m", "not baseline_images"]
