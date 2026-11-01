@@ -188,7 +188,7 @@ tests = "tests"
 dependencies = ["pytest", "pytest-asyncio", "trio"]
 
 [django]
-dependency_overrides = ["cffi"]
+dependency_overrides = ["cffi", "pillow"]
 version = "6.1.2"
 sdist_url = "https://files.pythonhosted.org/packages/89/24/20d187a22ac821288b53c53b8f696019dcb0c7b4f973f052ade19392c74d/django-6.1.2.tar.gz"
 sdist_sha256 = "a1e92451ccb8b514e91bbb3b6d186d20b4030558f116b5d9de6535455ff210b7"
@@ -274,15 +274,16 @@ installed = true
 dependencies = ["pytest", "hypothesis", "pytest-xdist", "python-dateutil<3", "pytz", "tzdata"]
 
 [pillow]
+source = "sdist"
 dependency_overrides = ["cffi"]
 windows = ["libjpeg-turbo", "zlib"]
 import_mode = "prepend"
-version = "13.0.0"
-sdist_url = "https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz"
-sdist_sha256 = "cdcd1ba258178f7356d74170c9a81ba4eab6a5d55748bc402a5a2a6fe6be3510"
+version = "13.1.0.dev0"
+sdist_url = "https://github.com/python-pillow/Pillow/archive/e31af4a6340468631df48fe3f18fe776a9460671.tar.gz"
+sdist_sha256 = "0038b4d1fb523adc368fda3709114620f701a6513f1820839762dfd267255413"
 repository = "https://github.com/python-pillow/Pillow"
-commit = "293218ad059d994baf1777d882911bed6a49704a"
-tag = "{version}"
+commit = "e31af4a6340468631df48fe3f18fe776a9460671"
+tag = ""
 module = "PIL"
 tests = "Tests"
 dependencies = ["pytest", "pytest-timeout"]
@@ -446,7 +447,7 @@ sdist_sha256 = "ce1f1d900948d57d7db5b5d8d81f4ebfcb798eff674493503ce5bfaafcea84dc
 commit = "f70db8143c7601ca55b4b219e50577a3f06e38ea"
 
 [matplotlib]
-dependency_overrides = ["cffi"]
+dependency_overrides = ["cffi", "pillow"]
 # Headless installed transformation tests; omit baseline-image comparisons.
 repository = "https://github.com/matplotlib/matplotlib"
 tag = "v{version}"
