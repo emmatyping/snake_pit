@@ -22,7 +22,7 @@ dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "tr
 [httpx]
 dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
-build_dependencies = ["maturin"]
+build_dependencies = ["maturin", "cffi", "pycparser"]
 version = "0.28.1"
 sdist_url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz"
 sdist_sha256 = "75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"
