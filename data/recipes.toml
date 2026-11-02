@@ -329,7 +329,7 @@ dependencies = ["pytest"]
 
 [psutil]
 # Preserve upstream CI handling and virtualenv subprocess interpreter selection.
-test_env = { GITHUB_ACTIONS = "true" }
+test_env = { GITHUB_ACTIONS = "true", PYTHONCOERCECLOCALE = "0" }
 dependency_overrides = ["cffi"]
 pytest_args = ["-o", "addopts=", "-o", "verbosity_subtests=auto"]
 version = "7.2.2"
