@@ -20,6 +20,7 @@ tests = "test"
 dependencies = ["pytest", "pytest-timeout", "pytest-mock", "pytest-freezer", "trustme", "PySocks", "python-dateutil", "anyio[trio]>=4.8.0", "h2>=4.1.0", "httpx>=0.28.1", "hypercorn>=0.15.0", "pytest-socket>=0.7.0", "quart>=0.20.0", "quart-trio>=0.12.0", "trio>=0.27.0"]
 
 [httpx]
+# Match the charset fixture and retain Click's pre-deprecation test helper.
 dependency_overrides = ["cffi"]
 # cryptography may need a source build on development interpreters.
 build_dependencies = ["maturin"]
@@ -31,7 +32,7 @@ commit = "26d48e0634e6ee9cdc0533996db289ce4b430177"
 tag = "{version}"
 module = "httpx"
 tests = "tests"
-dependencies = ["pytest", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard", "chardet", "httpx[cli]=={version}"]
+dependencies = ["pytest", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard", "chardet==5.2.0", "httpx[cli]=={version}", "click<8.5"]
 
 [anyio]
 dependency_overrides = ["cffi"]
