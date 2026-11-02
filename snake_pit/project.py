@@ -26,7 +26,7 @@ class PhaseFailed(Exception):
 
 
 def environment() -> dict[str, str]:
-    names = ('PATH', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE',
+    names = ('PATH', 'PATHEXT', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE',
              'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'SystemDrive', 'APPDATA', 'LOCALAPPDATA', 'COMSPEC',
              'INCLUDE', 'LIB', 'LIBPATH', 'VCINSTALLDIR', 'VSINSTALLDIR', 'VCToolsInstallDir',
              'WindowsSdkDir', 'WindowsSDKVersion', 'VSCMD_ARG_TGT_ARCH', 'PKG_CONFIG_PATH')

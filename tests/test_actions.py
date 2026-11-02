@@ -76,7 +76,7 @@ class ActionsTests(unittest.TestCase):
             self.assertIn('Cython produced no test results', result.stderr)
 
     def test_environment_retains_windows_paths_without_ci_credentials(self) -> None:
-        paths = {'ProgramFiles': 'programs', 'ProgramFiles(x86)': 'programs-x86',
+        paths = {'PATHEXT': '.COM;.EXE;.BAT;.CMD', 'ProgramFiles': 'programs', 'ProgramFiles(x86)': 'programs-x86',
                  'LOCALAPPDATA': 'local-data', 'APPDATA': 'app-data'}
         with patch.dict(os.environ, {**paths, 'GITHUB_TOKEN': 'secret'}, clear=True):
             env = environment()
