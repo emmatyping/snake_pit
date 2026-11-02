@@ -51,7 +51,7 @@ def main() -> int:
     adding.add_argument('--module', required=True, help='Python import name, e.g. PIL')
     adding.add_argument('--tests', default='tests', help='Relative test path (default: tests)')
     adding.add_argument('--installed', action='store_true', help='Run tests from the installed package')
-    adding.add_argument('--adapter', choices=('django', 'lxml', 'cython'))
+    adding.add_argument('--adapter', choices=('django', 'lxml', 'cython', 'psutil'))
     adding.add_argument('--exclude-platform', dest='exclude_platforms', action='append',
                         choices=tuple(load_platforms()['platforms']), help='Unsupported target triple (repeatable)')
     adding.add_argument('--import-mode', choices=('importlib', 'prepend', 'append'))

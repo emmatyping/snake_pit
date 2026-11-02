@@ -328,6 +328,7 @@ tests = "test"
 dependencies = ["pytest"]
 
 [psutil]
+adapter = "psutil"
 # Preserve upstream CI handling and virtualenv subprocess interpreter selection.
 test_env = { GITHUB_ACTIONS = "true", PYTHONCOERCECLOCALE = "0" }
 dependency_overrides = ["cffi"]

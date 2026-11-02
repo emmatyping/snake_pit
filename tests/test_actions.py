@@ -16,10 +16,38 @@ from snake_pit.actions import build, build_interpreter, interpreter, matrices, r
 from snake_pit.dependencies import load_projects, load_recipes
 from snake_pit.models import Phase, PhaseResult
 from snake_pit.modes import MODES, parse_mode
-from snake_pit.project import cython_command, environment, lxml_command, run_project, windows_compiler_environment, windows_lxml_environment
+from snake_pit.project import cython_command, environment, lxml_command, psutil_test_directory, run_project, windows_compiler_environment, windows_lxml_environment
 
 
 class ActionsTests(unittest.TestCase):
+    def test_psutil_subprocesses_use_staged_helpers_and_installed_package(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            checkout = root / 'upstream'
+            (checkout / 'tests').mkdir(parents=True)
+            (checkout / 'tests/__init__.py').write_text('MARKER = "staged helper"\n')
+            (checkout / 'psutil').mkdir()
+            (checkout / 'psutil/__init__.py').write_text('raise AssertionError("unbuilt source imported")\n')
+            (checkout / 'pyproject.toml').write_text('[tool.pytest.ini_options]\n')
+            installed = root / 'installed'
+            (installed / 'psutil').mkdir(parents=True)
+            (installed / 'psutil/__init__.py').write_text('MARKER = "installed wheel"\n')
+            env = dict(os.environ)
+            staged = psutil_test_directory(checkout, root, env)
+            # Stand in for site-packages without installing or executing external code.
+            env['PYTHONPATH'] += os.pathsep + str(installed)
+            code = ("import os, sys; "
+                    "sys.path.insert(0, os.environ['PSUTIL_ROOT_DIR']) if 'CIBUILDWHEEL' not in os.environ else None; "
+                    "import tests, psutil; "
+                    "assert tests.MARKER == 'staged helper'; "
+                    "assert psutil.MARKER == 'installed wheel'")
+            result = subprocess.run([sys.executable, '-P', '-c', code], cwd=staged,
+                                    env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(env['PSUTIL_ROOT_DIR'], str(checkout))
+            self.assertEqual((staged / 'pyproject.toml').read_bytes(),
+                             (checkout / 'pyproject.toml').read_bytes())
+
     def test_windows_lxml_uses_matching_local_static_libraries(self) -> None:
         for suffix in ('', 'd'):
             with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as directory:

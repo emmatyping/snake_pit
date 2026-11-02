@@ -109,7 +109,7 @@ def validate_recipe(name: str, value: dict[str, object]) -> Recipe:
         raise ValueError(f'{name}: dependencies are required (use an empty list if none)')
     if 'installed' in value and not isinstance(value['installed'], bool):
         raise ValueError(f'{name}: installed must be a boolean')
-    for key, choices in (('source', ('git', 'sdist')), ('adapter', ('django', 'lxml', 'cython')),
+    for key, choices in (('source', ('git', 'sdist')), ('adapter', ('django', 'lxml', 'cython', 'psutil')),
                          ('import_mode', ('importlib', 'prepend', 'append'))):
         if key in value and value[key] not in choices:
             raise ValueError(f'{name}: invalid {key}')

@@ -95,6 +95,15 @@ def windows_lxml_environment(prefix: Path, libraries: Path, env: dict[str, str])
     env['INCLUDE'] = str(prefix / 'include/libxml2') + ';' + env.get('INCLUDE', '')
 
 
+def psutil_test_directory(checkout: Path, work: Path, env: dict[str, str]) -> Path:
+    """Stage wheel tests without exposing the unbuilt psutil source package."""
+    directory = work / 'psutil-tests'
+    shutil.copytree(checkout / 'tests', directory / 'tests')
+    shutil.copyfile(checkout / 'pyproject.toml', directory / 'pyproject.toml')
+    env.update(PYTHONPATH=str(directory), CIBUILDWHEEL='1', PSUTIL_ROOT_DIR=str(checkout))
+    return directory
+
+
 def lxml_command(python: Path, checkout: Path) -> list[str]:
     wrapper = ('import lxml, lxml.html, pathlib, runpy, sys; lxml.__path__.append(sys.argv[1]); '
                'lxml.html.__path__.append(str(pathlib.Path(sys.argv[1]) / "html")); '
@@ -408,7 +417,10 @@ def run_project(project_name: str, commit: str, platform: str, mode: str,
             stage('test', command, checkout, timeout=1800)
         else:
             test_cwd = work if recipe.get('installed') else checkout
-            if recipe.get('installed'):
+            if recipe.get('adapter') == 'psutil':
+                test_cwd = psutil_test_directory(checkout, work, env)
+                tests = test_cwd / recipe['tests']
+            elif recipe.get('installed'):
                 location = subprocess.check_output([str(target), '-c',
                     f'import {module}, pathlib; print(pathlib.Path({module}.__file__).parent)'], cwd=work,
                     env=env, text=True).strip()
