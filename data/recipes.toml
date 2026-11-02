@@ -34,7 +34,7 @@ module = "httpx"
 tests = "tests"
 # Capture a stack if server setup or teardown hangs after an assertion failure.
 pytest_args = ["-vv", "--timeout=120"]
-dependencies = ["pytest", "pytest-timeout", "trio", "trustme", "uvicorn==0.32.1", "socksio", "h2", "brotli", "zstandard", "chardet==5.2.0", "httpx[cli]=={version}", "click<8.5"]
+dependencies = ["pytest", "pytest-timeout", "trio", "trustme", "uvicorn", "socksio", "h2", "brotli", "zstandard", "chardet==5.2.0", "httpx[cli]=={version}", "click<8.5"]
 
 [anyio]
 dependency_overrides = ["cffi"]
